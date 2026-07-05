@@ -1,0 +1,66 @@
+# === Heavy binaries / models — NEVER commit ===
+models/
+*.gguf
+*.bin
+*.safetensors
+llama_cpp/
+*.dll
+*.exe
+*.lib
+*.so
+*.dylib
+
+# === Secrets & env ===
+.env
+.env.*
+!.env.example
+
+# === Runtime data / databases ===
+.runtime/
+data/*.db
+*.db
+*.sqlite
+*.sqlite3
+logs/
+*.log
+
+# === Captured media (lecture audio/screenshots) ===
+*.wav
+*.mp3
+*.flac
+*.png
+*.jpg
+*.jpeg
+*.mp4
+lectures/
+captures/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# === Editors / OS ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Credentials
+*credentials*.json
+agent_credentials.json
+
+# Sandbox / temp execution artifacts
+.sandbox/
+output/
+*.tmp
+
+# Torrents / unrelated binaries
+*.torrent
+
+# Personal documents accidentally in workdir
+Pismo__*.pdf
+attachments/
