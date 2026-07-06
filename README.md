@@ -38,14 +38,46 @@ GUI / Ops API  ──►  Agent runtime (Gemma via llama.cpp, tool-calling)
 - `scripts/` — entry points and helpers
 - `start_*.bat` — launchers (GUI chat, ops API, autonomy loop, server)
 
+## Setup
+
+```
+pip install -r requirements.txt
+copy .env.example .env   # i dostosuj wartości
+```
+
+> **Note:** the local model weights (`*.gguf`), llama.cpp binaries and any credential files are **not**
+> included in this repository — see `.gitignore`. Download a Gemma GGUF model separately and point the
+> config at it.
+
 ## Configuration
 
 Runtime behaviour is driven by environment variables — see [`.env.example`](.env.example) for the full
 list (autonomy limits, lecture screenshot interval, audio channels, etc.). Copy it to `.env` and adjust.
 
-> **Note:** the local model weights (`*.gguf`), llama.cpp binaries and any credential files are **not**
-> included in this repository — see `.gitignore`. Download a Gemma GGUF model separately and point the
-> config at it.
+## CLI commands (piorun.py)
+
+| Komenda | Działanie |
+|---|---|
+| `/lecture <przedmiot>` / `/stop` | start/stop nagrywania wykładu (audio + slajdy) |
+| `/process [przedmiot]` | batch: transkrypcja → notatki → HTML (wznawialny, odporny na błędy) |
+| `/notes` | otwiera dashboard notatek |
+| `/study add\|list\|done\|week` | terminy studenckie |
+| `/autonomy status\|queue\|tick\|approve\|reject` | podgląd i decyzje autonomii |
+| `/resume`, `/restart`, `/tasks`, `/help`, `/exit` | sesje, zadania, pomoc |
+
+## Tests
+
+```
+python -m pytest
+```
+
+Testy działają w pełni odizolowanym środowisku (katalogi tymczasowe przez zmienne
+`PIORUN_*`) — nie dotykają prawdziwych baz ani folderu roboczego.
+
+## Development
+
+Plan rozwoju z etapami i kryteriami ukończenia: [`ROADMAP.md`](ROADMAP.md).
+Historia zmian: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Status
 
