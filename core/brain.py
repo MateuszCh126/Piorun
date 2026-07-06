@@ -4,7 +4,10 @@ import sqlite3
 import time
 from datetime import datetime
 
-from duckduckgo_search import DDGS
+try:
+    from ddgs import DDGS
+except ImportError:
+    from duckduckgo_search import DDGS
 from openai import OpenAI
 
 import core.db_schema as db_schema
@@ -88,9 +91,21 @@ AKTUALNY CZAS SYSTEMOWY: {now}
 
 
 def _tool_web_search(args: dict, _ctx: ExecutionContext):
-    with DDGS() as ddgs:
-        results = list(ddgs.text(args["query"], max_results=5))
-    return json.dumps(results, ensure_ascii=False)
+    query = str(args["query"]).strip()
+    last_error = "brak wynikow"
+    for attempt in range(3):
+        try:
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, region="pl-pl", max_results=5))
+            if results:
+                return json.dumps(results, ensure_ascii=False)
+        except Exception as e:
+            last_error = str(e)
+        time.sleep(1.5 * (attempt + 1))
+    return json.dumps(
+        {"error": f"web_search nie zwrocil wynikow ({last_error})", "query": query},
+        ensure_ascii=False,
+    )
 
 
 def _tool_search_global_history(args: dict, _ctx: ExecutionContext):

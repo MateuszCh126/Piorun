@@ -134,6 +134,7 @@ def _enqueue(item):
                 if existing_fp == new_fp or (new_semantic and existing_semantic == new_semantic):
                     return {"added": False, "id": str(existing.get("id", "")), "reason": "duplicate_pending_queue"}
         queue_items.append(item)
+        queue_items = queue_items[-100:]
         _write_json(QUEUE_PATH, queue_items)
         return {"added": True, "id": str(item.get("id", ""))}
 
@@ -461,6 +462,24 @@ def _pending_queue_prompt_block(queue_items: list[dict], limit: int = 10) -> str
     return "\n".join(lines) if lines else "- Brak."
 
 
+def _study_deadlines_prompt_block(limit: int = 8) -> str:
+    try:
+        import tools.study_deadlines as study
+
+        plan = study.week_plan()
+    except Exception:
+        return "- Brak danych o terminach."
+    if not plan:
+        return "- Brak terminow w najblizszych 7 dniach."
+    lines = []
+    for item in plan[:int(limit)]:
+        lines.append(
+            f"- ({item.get('priority','')}) {item.get('due_at','')[:16]} | "
+            f"{item.get('subject','')} | {item.get('title','')}"
+        )
+    return "\n".join(lines)
+
+
 def _build_context(state: dict, queue_items: list[dict]):
     profile = ""
     profile_path = SETTINGS.workspace_root / "user_profile.md"
@@ -481,6 +500,7 @@ def _build_context(state: dict, queue_items: list[dict]):
         "recent_summaries": "\n".join(summary_lines) if summary_lines else "- Brak podsumowan sesji.",
         "recent_autonomy_actions": _recent_actions_prompt_block(state, limit=12),
         "pending_queue_topics": _pending_queue_prompt_block(queue_items, limit=12),
+        "study_deadlines": _study_deadlines_prompt_block(limit=8),
     }
 
 
@@ -527,16 +547,24 @@ def _propose_actions(state: dict, queue_items: list[dict]):
 
     prompt = f"""
 Jestes bezpiecznym planerem autonomii dla asystenta Mateusza.
+Dzisiaj jest {datetime.now().strftime('%Y-%m-%d')}.
 Zwracasz tylko JSON.
 Masz podac 1 do 3 praktycznych propozycji, gdy user nic nie zlecil.
 Dozwolone akcje:
 - web_search: {{ "type": "web_search", "query": "..." }}
 - write_note: {{ "type": "write_note", "title": "...", "content": "..." }}
-WYMAGANIE: Nie powtarzaj semantycznie tych samych tematow, ktore byly wykonane niedawno albo sa juz w kolejce.
-Jesli temat byl juz poruszany, wybierz inny obszar lub bardziej konkretny nastepny krok.
+WYMAGANIA:
+- Nie powtarzaj semantycznie tych samych tematow, ktore byly wykonane niedawno albo sa juz w kolejce.
+- Jesli temat byl juz poruszany, wybierz inny obszar lub bardziej konkretny nastepny krok.
+- Zapytania web_search maja byc konkretne (temat + kontekst + biezacy rok, nie stare lata).
+- content notatki write_note ma byc gotowa trescia (fakty, plan, checklist) - nigdy pytaniem do uzytkownika.
+- Jesli sa nadchodzace terminy studenckie, preferuj akcje ktore realnie w nich pomagaja.
 
 Kontekst profilu (skrot):
 {context['profile']}
+
+Nadchodzace terminy studenckie (7 dni):
+{context['study_deadlines']}
 
 Ostatnie podsumowania:
 {context['recent_summaries']}
@@ -591,23 +619,8 @@ Schema:
     if fallback_proposals:
         return {"thought": "planner_fallback", "proposals": fallback_proposals}
 
-    synthetic = {
-        "title": "Autonomy heartbeat",
-        "reason": "Brak odpowiedzi planera - zapis kontrolny i plan dnia.",
-        "risk": "low",
-        "confidence": 78,
-        "action": {
-            "type": "write_note",
-            "title": "Autonomy heartbeat",
-            "content": (
-                "Planner nie zwrocil propozycji. "
-                "To wpis kontrolny autonomii z bezpiecznym planem: "
-                "1) sprawdz priorytety dnia, 2) doprecyzuj 1 cel techniczny, "
-                "3) przygotuj szybki krok wykonawczy na rano."
-            ),
-        },
-    }
-    return {"thought": "planner_synthetic_fallback", "proposals": [_sanitize_proposal(synthetic)]}
+    # Brak propozycji to poprawny wynik ticka - nie zasmiecamy notatek wpisami "heartbeat".
+    return {"thought": "planner_no_proposals", "proposals": []}
 
 
 def _append_note(title, content):
@@ -621,6 +634,43 @@ def _append_note(title, content):
     return str(note_path)
 
 
+def _call_llm_text(prompt: str, max_tokens: int = 600) -> str:
+    import core.brain as brain
+
+    response = brain.client.chat.completions.create(
+        model=brain.MODEL_NAME,
+        messages=[
+            {"role": "system", "content": "Piszesz zwiezle, konkretne notatki po polsku."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.3,
+        max_tokens=max(120, int(max_tokens)),
+        timeout=max(15, int(SETTINGS.autonomy_planner_timeout_seconds)),
+    )
+    msg = response.choices[0].message
+    return (getattr(msg, "content", "") or "").strip()
+
+
+def _format_search_results(raw_result: str) -> str:
+    try:
+        parsed = json.loads(str(raw_result))
+    except Exception:
+        return ""
+    if not isinstance(parsed, list):
+        return ""
+    lines = []
+    for item in parsed[:5]:
+        if not isinstance(item, dict):
+            continue
+        title = _sanitize_text(item.get("title", ""), 160)
+        body = _sanitize_text(item.get("body", ""), 400)
+        href = _sanitize_text(item.get("href", ""), 300)
+        if not (title or body):
+            continue
+        lines.append(f"- **{title}**\n  {body}\n  Zrodlo: {href}")
+    return "\n".join(lines)
+
+
 def _execute_low_risk_action(action):
     import core.brain as brain
 
@@ -630,7 +680,21 @@ def _execute_low_risk_action(action):
         if not query:
             return {"ok": False, "result": "Brak query"}
         res = brain.execute_tool_by_name("web_search", {"query": query}, mode="autonomous")
-        note_path = _append_note(f"Autonomy Research: {query}", str(res)[:4000])
+        formatted = _format_search_results(str(res))
+        if not formatted:
+            return {"ok": False, "result": f"web_search bez uzytecznych wynikow: {_clip_text(str(res), 200)}"}
+        note_body = formatted
+        try:
+            synthesis = _call_llm_text(
+                "Na podstawie ponizszych wynikow wyszukiwania napisz zwiezla notatke: "
+                "3-6 punktow z konkretnymi faktami, na koncu sekcja 'Zrodla' z adresami URL. "
+                f"Temat: {query}\n\nWyniki:\n{formatted}"
+            )
+            if len(synthesis) >= 100:
+                note_body = f"{synthesis}\n\n---\nSurowe wyniki:\n{formatted}"
+        except Exception:
+            pass
+        note_path = _append_note(f"Autonomy Research: {query}", note_body)
         return {"ok": True, "result": f"web_search wykonane, note: {note_path}"}
     if action_type == "write_note":
         title = str(action.get("title", "Autonomy Note")).strip() or "Autonomy Note"

@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -150,7 +151,14 @@ class AgentExecutor:
         context_manager: ContextManager | None = None,
     ) -> list:
         announced_plan = False
+        rounds = 0
+        max_rounds = 24
         while True:
+            rounds += 1
+            if rounds > max_rounds:
+                if print_callback:
+                    print_callback("[!] Przerwano petle narzedzi (limit iteracji).", is_status=True)
+                break
             if context_manager:
                 history = context_manager(history)
 
@@ -165,7 +173,19 @@ class AgentExecutor:
                     print_callback(f"[*] Plan: {' -> '.join(plan)}", is_status=True)
                     announced_plan = True
 
-            response = llm_client.chat.completions.create(model=model_name, messages=history, tools=tools_schema)
+            response = None
+            last_error = None
+            for attempt in range(3):
+                try:
+                    response = llm_client.chat.completions.create(
+                        model=model_name, messages=history, tools=tools_schema
+                    )
+                    break
+                except Exception as e:
+                    last_error = e
+                    time.sleep(2 ** attempt)
+            if response is None:
+                raise last_error
             msg = response.choices[0].message
             history.append(msg)
 

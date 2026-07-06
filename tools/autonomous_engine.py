@@ -5,6 +5,7 @@ from datetime import datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import core.brain as brain
+from core.autonomy_supervisor import _format_search_results
 
 try:
     from core.config import get_settings
@@ -17,6 +18,12 @@ TOPICS = [
     "Applied Computer Science (trendy, publikacje, AI architecture)",
 ]
 
+# Konkretne zapytania per temat - LLM nie musi sam wymyslac ani wywolywac narzedzi.
+TOPIC_QUERIES = {
+    TOPICS[0]: "nauka o zdrowiu sen trening nawyki badania",
+    TOPICS[1]: "machine learning AI engineering nowe publikacje trendy",
+}
+
 SETTINGS = get_settings()
 AUTONOMY_LOG = str(SETTINGS.autonomy_log)
 
@@ -27,69 +34,95 @@ def log_event(message):
         f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
 
 
-def _extract_final_text(history):
-    if not history:
-        return ""
+def _gather_materials():
+    """Wykonuje wyszukiwania per temat w kodzie (deterministycznie), zwraca sformatowane materialy."""
+    materials = []
+    year = datetime.now().year
+    for topic in TOPICS:
+        query = f"{TOPIC_QUERIES.get(topic, topic)} {year}"
+        raw = brain.execute_tool_by_name("web_search", {"query": query}, mode="autonomous")
+        formatted = _format_search_results(str(raw))
+        if formatted:
+            log_event(f"AKCJA OK: web_search ({query})")
+        else:
+            log_event(f"AKCJA PUSTA: web_search ({query})")
+        materials.append({"topic": topic, "query": query, "results": formatted})
+    return materials
 
-    last_msg = history[-1]
-    if hasattr(last_msg, "content") and last_msg.content:
-        return last_msg.content
-    if isinstance(last_msg, dict) and last_msg.get("content"):
-        return last_msg["content"]
 
-    for msg in reversed(history):
-        content = getattr(msg, "content", None) if not isinstance(msg, dict) else msg.get("content")
-        if content:
-            return content
-    return ""
+def _materials_to_text(materials):
+    sections = []
+    for m in materials:
+        body = m["results"] or "- Brak wynikow wyszukiwania dla tego tematu."
+        sections.append(f"### {m['topic']}\n{body}")
+    return "\n\n".join(sections)
+
+
+def _synthesize_report(materials_text):
+    """Jedna proba syntezy raportu przez lokalny LLM (bez narzedzi)."""
+    prompt = f"""
+Przygotuj poranny raport dla Mateusza na podstawie PONIZSZYCH materialow (nie zmyslaj faktow spoza nich).
+
+STRUKTURA:
+1. Informatyka i Tech - najwazniejsze fakty i wnioski.
+2. Holistyczny Samorozwoj - najwazniejsze fakty i wnioski.
+3. Wnioski i Rekomendacje - 2-3 konkretne, praktyczne kroki.
+Na koncu sekcja "Zrodla" z adresami URL z materialow.
+
+MATERIALY:
+{materials_text}
+"""
+    response = brain.client.chat.completions.create(
+        model=brain.MODEL_NAME,
+        messages=[
+            {"role": "system", "content": brain.get_system_prompt()},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.3,
+        timeout=120,
+    )
+    msg = response.choices[0].message
+    return (getattr(msg, "content", "") or "").strip()
 
 
 def run_morning_routine():
     log_event("--- START SESJI PORANNEJ ---")
 
-    subjects = ", ".join(TOPICS)
-    prompt = f"""
-Jestes w trybie AUTONOMICZNYM. Przygotuj profesjonalny raport dla Mateusza.
-TEMATY: {subjects}.
+    materials = _gather_materials()
+    materials_text = _materials_to_text(materials)
+    any_results = any(m["results"] for m in materials)
 
-WYMAGANIA:
-1. Przeszukaj siec (`web_search`) pod katem najnowszych i sprawdzonych informacji.
-2. Raport musi miec sekcje:
-   - Informatyka i Tech
-   - Holistyczny Samorozwoj
-   - Wnioski i Rekomendacje
-3. Zakoncz gotowym raportem tekstowym do wysylki e-mail.
-"""
+    report = ""
+    if any_results:
+        try:
+            report = _synthesize_report(materials_text)
+        except Exception as e:
+            log_event(f"BLAD LLM (fallback na surowe materialy): {e}")
 
-    history = [
-        {"role": "system", "content": brain.get_system_prompt()},
-        {"role": "user", "content": prompt},
-    ]
-    session_id = f"AUTO_{datetime.now().strftime('%Y%m%d')}"
-    topic = "Autonomous Morning"
-
-    # Zapis user promptu, aby summary sesji mialo pelny kontekst.
-    brain.save_message(session_id, topic, "user", prompt)
-
-    try:
-        history = brain.execute_brain_loop(
-            history=history,
-            session_id=session_id,
-            topic=topic,
-            mode="autonomous",
+    if len(report.strip()) < 300:
+        # Fallback: raport z samych materialow - nadal wartosciowy, zawiera zrodla.
+        header = "RAPORT PORANNY (tryb awaryjny - synteza LLM niedostepna)\n\n" if any_results else (
+            "RAPORT PORANNY (uwaga: wyszukiwarka nie zwrocila wynikow)\n\n"
         )
+        report = header + materials_text
+        log_event(f"OSTRZEZENIE: raport w trybie fallback ({len(report)} znakow).")
+
+    # Kopia raportu na dysku (folder roboczy Pioruna).
+    date_tag = datetime.now().strftime("%Y%m%d")
+    report_path = str(SETTINGS.workdir / f"Raport_poranny_{date_tag}.md")
+    try:
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report)
+        log_event(f"RAPORT ZAPISANY: {report_path}")
     except Exception as e:
-        log_event(f"BLAD LLM: {e}")
-        return f"Blad sesji autonomicznej: {e}"
+        log_event(f"BLAD ZAPISU RAPORTU: {e}")
 
-    final_text = _extract_final_text(history) or "Nie udalo sie zebrac tresci raportu."
     subject = f"RAPORT PORANNY | {datetime.now().strftime('%d.%m.%Y')}"
-
     recipient = "mateuszch126@gmail.com"
-    status = brain.mailer.send_email(to_email=recipient, subject=subject, body=final_text)
+    status = brain.mailer.send_email(to_email=recipient, subject=subject, body=report)
     log_event(f"RAPORT WYSLANY: {status}")
     log_event("--- KONIEC SESJI PORANNEJ ---")
-    return "Raport wyslany w tresci e-maila."
+    return f"Raport wyslany w tresci e-maila, kopia: {report_path}"
 
 
 if __name__ == "__main__":

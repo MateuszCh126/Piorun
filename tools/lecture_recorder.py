@@ -47,6 +47,8 @@ class LectureRecorder:
         self.slide_index = 0
         self.active_channels = CHANNELS
         self.wave_writer = None
+        self.frames_written = 0
+        self.audio_errors = 0
 
     def get_loopback_device(self, p):
         wasapi_info = None
@@ -127,6 +129,20 @@ class LectureRecorder:
 
         self._init_wave_writer()
         self._write_metadata()
+
+        # Sonda: jeden odczyt na starcie, zeby nie odkryc po wykladzie, ze stream byl martwy.
+        try:
+            probe = self.stream.read(CHUNK_SIZE, exception_on_overflow=False)
+            self.wave_writer.writeframesraw(probe)
+            self.frames_written += 1
+        except Exception as e:
+            print(f"[!] Blad: strumien loopback nie dostarcza audio: {e}")
+            self.stream.close()
+            self.wave_writer.close()
+            self.wave_writer = None
+            self.p.terminate()
+            return False
+
         print(f"[*] Nagrywanie z: {dev['name']} ({self.rate} Hz, {self.active_channels} kanal(y))")
 
         self.recording = True
@@ -140,8 +156,8 @@ class LectureRecorder:
 
     def stop(self):
         self.recording = False
-        self.audio_thread.join()
-        self.slide_thread.join()
+        self.audio_thread.join(timeout=10)
+        self.slide_thread.join(timeout=max(10, SCREENSHOT_INTERVAL + 5))
 
         self.stream.stop_stream()
         self.stream.close()
@@ -153,16 +169,37 @@ class LectureRecorder:
         with open(self.timeline_path, "w", encoding="utf-8") as f:
             json.dump(self.timeline, f, ensure_ascii=False, indent=2)
 
+        duration = self.frames_written * CHUNK_SIZE / float(self.rate or 1)
+        if self.frames_written <= 1:
+            print("[!] UWAGA: audio.wav jest praktycznie puste - nagrywanie audio NIE powiodlo sie.")
+        else:
+            print(
+                f"[*] Audio: ~{duration:.0f}s zapisane ({self.frames_written} fragmentow, "
+                f"bledy odczytu: {self.audio_errors})."
+            )
         return self.session_dir
 
     def _record_audio(self):
+        frames_since_flush = 0
         while self.recording:
             try:
                 data = self.stream.read(CHUNK_SIZE, exception_on_overflow=False)
                 if self.wave_writer:
                     self.wave_writer.writeframesraw(data)
-            except Exception:
-                pass
+                    self.frames_written += 1
+                    frames_since_flush += 1
+                    # Okresowy flush: przy padzie procesu na dysku zostaje dotychczasowe audio.
+                    if frames_since_flush >= 200:
+                        frames_since_flush = 0
+                        try:
+                            self.wave_writer._file.flush()
+                        except Exception:
+                            pass
+            except Exception as e:
+                self.audio_errors += 1
+                if self.audio_errors <= 3:
+                    print(f"[!] Blad odczytu audio (#{self.audio_errors}): {e}")
+                time.sleep(0.05)
 
     def _hash_image(self, img):
         small = img.convert("L").resize(SCREENSHOT_HASH_DOWNSCALE, Image.Resampling.BILINEAR)

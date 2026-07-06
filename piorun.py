@@ -6,7 +6,10 @@ import subprocess
 import warnings
 from datetime import datetime
 import sys
-from duckduckgo_search import DDGS
+try:
+    from ddgs import DDGS
+except ImportError:
+    from duckduckgo_search import DDGS
 
 # Moduły narzędziowe
 import core.brain as brain
@@ -79,7 +82,7 @@ def list_sessions():
 def web_search(query):
     try:
         with DDGS() as ddgs:
-            results = [r for r in ddgs.text(query, max_results=3)]
+            results = [r for r in ddgs.text(query, region="pl-pl", max_results=3)]
             formatted = ""
             for r in results:
                 formatted += f"Source: {r['href']}\nTitle: {r['title']}\nSnippet: {r['body']}\n\n"
@@ -135,8 +138,8 @@ class PiorunCompleter(Completer):
         text = document.text_before_cursor
         if text.startswith("/"):
             commands = [
-                '/help', '/clear', '/exit', '/tasks', '/schedule', 
-                '/lecture', '/stop', '/process', '/notes', '/resume', '/restart', '/study'
+                '/help', '/clear', '/exit', '/tasks', '/schedule',
+                '/lecture', '/stop', '/process', '/notes', '/resume', '/restart', '/study', '/autonomy'
             ]
             for cmd in commands:
                 if cmd.startswith(text):
@@ -219,6 +222,8 @@ def piorun_cli():
                 elif cmd == "/help":
                     print("\n[POMOC] Komendy: /exit, /resume, /restart, /help, /tasks")
                     print("[STUDY] /study add | /study list | /study done | /study week")
+                    print("[AUTONOMIA] /autonomy status | queue | tick | approve <id> | reject <id> [powod]")
+                    print("[WYKLADY] /lecture <przedmiot> | /stop | /process [przedmiot] | /notes")
                     continue
                 elif cmd == "/restart":
                     session_id = str(int(time.time()))
@@ -286,7 +291,8 @@ def piorun_cli():
                         session_path = os.path.join(sessions_dir, s)
                         notes_done = os.path.join(session_path, "notes_structured.json")
                         audio_exists = os.path.exists(os.path.join(session_path, "audio.wav"))
-                        if audio_exists and not os.path.exists(notes_done):
+                        transcript_exists = os.path.exists(os.path.join(session_path, "transcript.json"))
+                        if (audio_exists or transcript_exists) and not os.path.exists(notes_done):
                             pending.append(session_path)
                     
                     if not pending:
@@ -302,31 +308,46 @@ def piorun_cli():
                     print()
                     
                     last_html = None
+                    done_count = 0
+                    failed = []
                     for i, session_path in enumerate(pending):
                         # Wyciągnij nazwę przedmiotu z nazwy folderu
                         folder_name = os.path.basename(session_path)
                         # Format: YYYY-MM-DD_HHMM_Przedmiot
                         parts_folder = folder_name.split("_", 2)
                         subject = parts_folder[2] if len(parts_folder) > 2 else folder_name
-                        
+
                         print(f"[{i+1}/{len(pending)}] Procesowanie: {folder_name}")
-                        print(f"  [1/3] Transkrypcja GPU (Whisper large-v3)...")
-                        wb.transcribe_session(session_path)
-                        print(f"  [2/3] Analiza Pioruna -> notatki...")
-                        ng.generate_academic_notes(session_path, subject)
-                        print(f"  [3/3] Generowanie HTML...")
-                        last_html = hb.build_lecture_page(session_path, subject)
-                        if LECTURE_CLEANUP_AFTER_PROCESS:
-                            removed = cleanup_lecture_artifacts(session_path)
-                            if removed:
-                                print(f"  [CLEANUP] Usunięto: {', '.join(removed)}")
-                        print(f"  [OK] Gotowe: {last_html}\n")
-                    
+                        try:
+                            transcript_path = os.path.join(session_path, "transcript.json")
+                            if os.path.exists(transcript_path):
+                                print(f"  [1/3] Transkrypcja już istnieje - pomijam (resume).")
+                            else:
+                                print(f"  [1/3] Transkrypcja GPU (Whisper large-v3)...")
+                                wb.transcribe_session(session_path)
+                            print(f"  [2/3] Analiza Pioruna -> notatki...")
+                            ng.generate_academic_notes(session_path, subject)
+                            print(f"  [3/3] Generowanie HTML...")
+                            last_html = hb.build_lecture_page(session_path, subject)
+                            if LECTURE_CLEANUP_AFTER_PROCESS:
+                                removed = cleanup_lecture_artifacts(session_path)
+                                if removed:
+                                    print(f"  [CLEANUP] Usunięto: {', '.join(removed)}")
+                            done_count += 1
+                            print(f"  [OK] Gotowe: {last_html}\n")
+                        except Exception as e:
+                            failed.append(folder_name)
+                            print(f"  [!] Sesja pominięta z powodu błędu: {e}\n")
+
                     import webbrowser
                     if last_html:
                         webbrowser.open(f"file:///{last_html}")
-                    print(f"\n[BATCH DONE] Przetworzone {len(pending)} sesji. Otwieram dashboard...")
-                    webbrowser.open(f"file:///{SETTINGS.notes_root / 'index.html'}")
+                    print(f"\n[BATCH DONE] Przetworzone: {done_count}/{len(pending)} sesji.")
+                    if failed:
+                        print(f"[!] Nieudane (do ponowienia przez /process): {', '.join(failed)}")
+                    if last_html:
+                        print("[*] Otwieram dashboard...")
+                        webbrowser.open(f"file:///{SETTINGS.notes_root / 'index.html'}")
                     continue
                 elif cmd == "/notes":
                     import webbrowser
@@ -400,7 +421,52 @@ def piorun_cli():
                         continue
                     print("\n[!] Nieznana komenda /study. Uzyj: /study help")
                     continue
-            
+                elif cmd == "/autonomy":
+                    import core.ops_runtime as ops
+                    parts = user_input.strip().split()
+                    subcmd = parts[1].lower() if len(parts) > 1 else "status"
+                    try:
+                        if subcmd == "status":
+                            state = ops.get_autonomy_state()
+                            print("\n[AUTONOMIA]")
+                            for key in ("enabled", "interval_seconds", "autoexec_count_this_hour",
+                                        "ticks_count", "last_tick_at", "queue_size"):
+                                print(f"- {key}: {state.get(key)}")
+                            print(f"- notes_dir: {state.get('notes_dir')}")
+                        elif subcmd == "queue":
+                            limit = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 20
+                            items = ops.list_autonomy_queue(limit=limit)
+                            if not items:
+                                print("\n[AUTONOMIA] Kolejka pusta.")
+                            else:
+                                print(f"\n[AUTONOMIA] Kolejka ({len(items)}):")
+                                for item in items:
+                                    action = item.get("action", {}) if isinstance(item.get("action", {}), dict) else {}
+                                    print(
+                                        f"- {item.get('id','')} | {item.get('title','')[:60]} | "
+                                        f"akcja={action.get('type','')} | conf={item.get('confidence','')} | "
+                                        f"blokada={str(item.get('reason_blocked',''))[:50]}"
+                                    )
+                        elif subcmd == "tick":
+                            result = ops.run_autonomy_tick_now()
+                            print(
+                                f"\n[AUTONOMIA] Tick: wykonane={len(result.get('executed', []))}, "
+                                f"zakolejkowane={len(result.get('queued', []))}, "
+                                f"pominiete={len(result.get('skipped', []))}, "
+                                f"bledy={len(result.get('errors', []))}"
+                            )
+                        elif subcmd in {"approve", "reject"} and len(parts) > 2:
+                            reason = " ".join(parts[3:]) if len(parts) > 3 else ""
+                            result = ops.decide_autonomy_queue_item(
+                                item_id=parts[2], decision=subcmd, reviewer="cli", reason=reason
+                            )
+                            print(f"\n[AUTONOMIA] {subcmd}: {result}")
+                        else:
+                            print("\n[!] Uzycie: /autonomy status | queue [limit] | tick | approve <id> | reject <id> [powod]")
+                    except Exception as e:
+                        print(f"\n[!] Blad /autonomy: {e}")
+                    continue
+
             # --- BRAIN EXECUTION ---
             if not brain.save_message(session_id, topic, "user", user_input):
                 print("[!] Blad: Baza danych zajeta.")
