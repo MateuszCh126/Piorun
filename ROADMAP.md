@@ -106,7 +106,7 @@ na pytania i przygotowuje do egzaminów.
 | 4.1 | Indeks pełnotekstowy: SQLite FTS5 nad `notes_structured.json` wszystkich sesji + komenda `/find <fraza>` (wyniki: przedmiot, data, fragment, link do HTML) | nowy `tools/knowledge_index.py`, `piorun.py` | M | niskie: FTS5 jest w stdlib sqlite |
 | 4.2 | Fiszki z notatek: sekcje „Pytania kontrolne" już są generowane — parser zbiera je per przedmiot i eksportuje do formatu Anki (apkg przez `genanki` albo prosty TSV) + `/flashcards <przedmiot>` | nowy `tools/flashcards.py` | M | średnie: jakość pytań zależy od modelu — zacząć od TSV |
 | 4.3 | Powiązanie notatek z terminami: `/study` pokazuje przy terminie liczbę notatek z przedmiotu i link do najnowszej | `tools/study_deadlines.py`, `piorun.py` | S | niskie |
-| 4.4 | Pamięć wektorowa w rozmowie: chromadb już jest w `tools/memory.py` — wyszukiwanie semantyczne po historii + notatkach wpięte jako narzędzie `recall` dla modelu | `tools/memory.py`, `core/brain.py` | L | średnie: koszt embeddingów lokalnie; wymaga pomiaru |
+| 4.4 | Pamięć wektorowa w rozmowie: narzędzie `recall` dla modelu — **projekt gotowy: `docs/vector-memory-design.md`** (4 kolekcje, embeddingi multilingual, plan wdrożenia w 8 krokach) | wg projektu | L | zaadresowane w projekcie |
 | 4.5 | Quiz przed kolokwium: `/quiz <przedmiot>` — model odpytuje z notatek (pętla pytanie→odpowiedź→ocena), wynik zapisywany, słabe obszary trafiają do fiszek | `piorun.py` + nowy `tools/quiz.py` | L | średnie: wymaga działającego LLM, projekt promptów |
 
 **Kryterium ukończenia:** `/find` znajduje frazę z dowolnego wykładu w <1 s;
