@@ -29,3 +29,7 @@ os.environ["PIORUN_SANDBOX_DIR"] = str(_TMP / "sandbox")
 os.environ["PIORUN_BACKUP_DIR"] = str(_TMP / "backups")
 os.environ["PIORUN_AGENT_CREDENTIALS_PATH"] = str(_TMP / "agent_credentials.json")
 os.environ["PIORUN_AUTONOMY_ENABLED"] = "false"
+# Hooki pamieci wektorowej jako no-op: zaden test nie moze pobierac
+# prawdziwego modelu embeddingow. Testy pamieci wlaczaja flage lokalnie
+# (fixture memory_enabled w test_vector_memory.py) z falszywym embedderem.
+os.environ["PIORUN_MEMORY_RECALL_ENABLED"] = "false"

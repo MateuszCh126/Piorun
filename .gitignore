@@ -17,6 +17,7 @@ llama_cpp/
 
 # === Runtime data / databases ===
 .runtime/
+.memory_db/
 data/*.db
 *.db
 *.sqlite

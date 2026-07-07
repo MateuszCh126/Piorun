@@ -65,6 +65,10 @@ class Settings:
     autonomy_planner_timeout_seconds: int
     autonomy_planner_max_tokens: int
     autonomy_state_dir: Path
+    memory_recall_enabled: bool
+    memory_embedding_model: str
+    memory_recall_top_k: int
+    memory_recall_max_distance: float
 
 
 def _path_from_env(name: str, default: Path) -> Path:
@@ -79,6 +83,16 @@ def _int_from_env(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         return int(default)
+
+
+def _float_from_env(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return float(default)
+    try:
+        return float(raw)
+    except ValueError:
+        return float(default)
 
 
 def _bool_from_env(name: str, default: bool) -> bool:
@@ -144,6 +158,12 @@ def _build_settings() -> Settings:
     autonomy_planner_timeout_seconds = _int_from_env("PIORUN_AUTONOMY_PLANNER_TIMEOUT_SECONDS", 60)
     autonomy_planner_max_tokens = _int_from_env("PIORUN_AUTONOMY_PLANNER_MAX_TOKENS", 1200)
     autonomy_state_dir = _path_from_env("PIORUN_AUTONOMY_STATE_DIR", runtime_root / "autonomy")
+    memory_recall_enabled = _bool_from_env("PIORUN_MEMORY_RECALL_ENABLED", True)
+    memory_embedding_model = os.environ.get(
+        "PIORUN_MEMORY_EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    memory_recall_top_k = _int_from_env("PIORUN_MEMORY_RECALL_TOP_K", 5)
+    memory_recall_max_distance = _float_from_env("PIORUN_MEMORY_RECALL_MAX_DISTANCE", 0.65)
 
     return Settings(
         project_root=PROJECT_ROOT,
@@ -184,6 +204,10 @@ def _build_settings() -> Settings:
         autonomy_planner_timeout_seconds=autonomy_planner_timeout_seconds,
         autonomy_planner_max_tokens=autonomy_planner_max_tokens,
         autonomy_state_dir=autonomy_state_dir,
+        memory_recall_enabled=memory_recall_enabled,
+        memory_embedding_model=memory_embedding_model,
+        memory_recall_top_k=memory_recall_top_k,
+        memory_recall_max_distance=memory_recall_max_distance,
     )
 
 

@@ -626,11 +626,24 @@ Schema:
 def _append_note(title, content):
     notes_dir = SETTINGS.allowed_root / "autonomy_notes"
     notes_dir.mkdir(parents=True, exist_ok=True)
-    note_path = notes_dir / f"{datetime.now().strftime('%Y-%m-%d')}.md"
+    now = datetime.now()
+    note_path = notes_dir / f"{now.strftime('%Y-%m-%d')}.md"
     safe_title = _sanitize_text(title, 160).replace("\n", " ").replace("\r", " ").strip() or "Autonomy Note"
     with open(note_path, "a", encoding="utf-8") as f:
-        f.write(f"\n## {datetime.now().strftime('%H:%M:%S')} | {safe_title}\n")
+        f.write(f"\n## {now.strftime('%H:%M:%S')} | {safe_title}\n")
         f.write(content.strip() + "\n")
+    # Indeks pamieci wektorowej - nigdy nie blokuje zapisu notatki.
+    try:
+        import tools.vector_memory as vector_memory
+
+        vector_memory.upsert_research_note(
+            title=safe_title,
+            content=content.strip(),
+            date=now.strftime("%Y-%m-%d"),
+            time_tag=now.strftime("%H:%M:%S"),
+        )
+    except Exception as e:
+        print(f"[!] Pamiec: indeksowanie notatki nie powiodlo sie: {e}")
     return str(note_path)
 
 

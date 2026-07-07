@@ -176,6 +176,13 @@ def refresh_session_summary(session_id, topic="", recent_limit=40):
         total_msgs = get_session_message_count(session_id)
         summary_text = _build_summary_text(topic, user_msgs, assistant_msgs, total_msgs)
         upsert_session_summary(session_id, topic, summary_text, total_msgs)
+        # Indeks pamieci wektorowej - nigdy nie blokuje odswiezenia summary.
+        try:
+            import tools.vector_memory as vector_memory
+
+            vector_memory.upsert_conversation_summary(session_id, topic, summary_text)
+        except Exception:
+            pass
         return summary_text
     except Exception as e:
         return f"Blad odswiezania summary sesji: {e}"

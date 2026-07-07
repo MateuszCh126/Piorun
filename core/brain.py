@@ -112,6 +112,17 @@ def _tool_search_global_history(args: dict, _ctx: ExecutionContext):
     return memory.search_global_history(args["query"])
 
 
+def _tool_recall(args: dict, _ctx: ExecutionContext):
+    import tools.vector_memory as vector_memory
+
+    hits = vector_memory.recall(
+        query=args["query"],
+        kind=args.get("kind"),
+        top_k=args.get("top_k", SETTINGS.memory_recall_top_k),
+    )
+    return vector_memory.format_recall_for_llm(hits)
+
+
 def _tool_list_dir(args: dict, _ctx: ExecutionContext):
     return str(os.listdir(args.get("path", ".")))
 
@@ -179,6 +190,24 @@ def _build_tool_registry() -> ToolRegistry:
             handler=_tool_search_global_history,
         )
     )
+    if SETTINGS.memory_recall_enabled:
+        registry.register(
+            ToolDefinition(
+                name="recall",
+                description=(
+                    "Semantyczna pamiec dlugoterminowa: szuka we wlasnych notatkach z wykladow, "
+                    "researchu autonomii i podsumowaniach rozmow. Uzyj, gdy pytanie dotyczy "
+                    "wczesniejszych wykladow, notatek lub przeszlych rozmow."
+                ),
+                properties={
+                    "query": {"type": "string"},
+                    "kind": {"type": "string", "description": "Opcjonalny filtr: lecture|research|conversation"},
+                    "top_k": {"type": "integer"},
+                },
+                required=["query"],
+                handler=_tool_recall,
+            )
+        )
     registry.register(
         ToolDefinition(
             name="list_dir",

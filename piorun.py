@@ -139,7 +139,7 @@ class PiorunCompleter(Completer):
         if text.startswith("/"):
             commands = [
                 '/help', '/clear', '/exit', '/tasks', '/schedule',
-                '/lecture', '/stop', '/process', '/notes', '/resume', '/restart', '/study', '/autonomy'
+                '/lecture', '/stop', '/process', '/notes', '/resume', '/restart', '/study', '/autonomy', '/recall'
             ]
             for cmd in commands:
                 if cmd.startswith(text):
@@ -224,6 +224,7 @@ def piorun_cli():
                     print("[STUDY] /study add | /study list | /study done | /study week")
                     print("[AUTONOMIA] /autonomy status | queue | tick | approve <id> | reject <id> [powod]")
                     print("[WYKLADY] /lecture <przedmiot> | /stop | /process [przedmiot] | /notes")
+                    print("[PAMIEC] /recall <fraza> - semantyczne szukanie w notatkach i rozmowach")
                     continue
                 elif cmd == "/restart":
                     session_id = str(int(time.time()))
@@ -420,6 +421,18 @@ def piorun_cli():
                             )
                         continue
                     print("\n[!] Nieznana komenda /study. Uzyj: /study help")
+                    continue
+                elif cmd == "/recall":
+                    query = user_input.strip()[len("/recall"):].strip()
+                    if not query:
+                        print("\n[!] Uzycie: /recall <fraza>")
+                        continue
+                    try:
+                        import tools.vector_memory as vector_memory
+                        hits = vector_memory.recall(query)
+                        print("\n" + vector_memory.format_recall_for_human(hits))
+                    except Exception as e:
+                        print(f"\n[!] Blad pamieci: {e}")
                     continue
                 elif cmd == "/autonomy":
                     import core.ops_runtime as ops

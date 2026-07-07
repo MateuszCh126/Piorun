@@ -110,6 +110,16 @@ def generate_academic_notes(session_dir, subject):
         json.dump(structured_notes, f, ensure_ascii=False, indent=2)
 
     print(f"[OK] Notatki ustrukturyzowane zapisane: {output_path}")
+
+    # Indeks pamieci wektorowej - nigdy nie blokuje zapisu notatek.
+    try:
+        import tools.vector_memory as vector_memory
+        indexed = vector_memory.upsert_lecture_session(session_dir, subject)
+        if indexed:
+            print(f"[*] Pamiec: zindeksowano {indexed} fragmentow notatek.")
+    except Exception as e:
+        print(f"[!] Pamiec: indeksowanie nie powiodlo sie: {e}")
+
     return output_path
 
 def build_prompt(text, prev_context, slide):
