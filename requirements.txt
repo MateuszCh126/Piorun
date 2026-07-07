@@ -16,7 +16,11 @@ numpy==2.4.2
 scipy==1.17.1
 
 # Pamiec wektorowa
+# UWAGA: nie instaluj rownolegle pakietu 'chromadb-client' (thin client) -
+# nadpisuje pelny pakiet i wymusza tryb http-only, przez co PersistentClient
+# przestaje dzialac (odkryte 2026-07-07 na tej maszynie).
 chromadb==1.5.7
+sentence-transformers==5.6.0
 
 # Integracje Google (kalendarz)
 google-api-python-client==2.190.0

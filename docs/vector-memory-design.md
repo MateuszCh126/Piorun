@@ -1,9 +1,21 @@
 # Pamięć wektorowa Pioruna — projekt struktury i plan wdrożenia
 
 Stan na: 2026-07-06 (wersja rozszerzona). Dokument projektowy dla zadania
-**4.4 z ROADMAP** (pamięć wektorowa w rozmowie). Sam projekt — bez implementacji.
+**4.4 z ROADMAP** (pamięć wektorowa w rozmowie).
 Zakres: struktura bazy, pełna specyfikacja API, algorytmy, kalibracja, testy,
 tryby awarii, prywatność, decyzje architektoniczne i 12-krokowy plan wdrożenia.
+
+> **Status wdrożenia (2026-07-07): kroki 1-8 i 11 ZREALIZOWANE.**
+> Moduł `tools/vector_memory.py`, 15 testów, `scripts/reindex_memory.py`,
+> hooki, narzędzie `recall` + `/recall` — działa. Backfill na realnych danych:
+> 39 dokumentów research + 9 podsumowań (lecture_notes=0, bo żadna sesja nie
+> była dotąd przetworzona do notatek). Żywa weryfikacja: zapytanie o zagrożenia
+> cyber → dystans 0.29; „przepis na bigos" → „brak wspomnień". Odkryty i
+> naprawiony bug środowiska: pakiet `chromadb-client` wymuszał tryb http-only
+> (PersistentClient nigdy nie działał — stąd pusty `.memory_db`).
+> Do zrobienia: krok 9 (kalibracja progu wg sekcji 8 — wymaga dziesiątek
+> realnych zapytań właściciela), krok 10 (`doctor` — powstanie w zad. 3.2),
+> krok 12 (pomiar po tygodniu użycia).
 
 ## 0. Fakty zastane (zweryfikowane w repo i na maszynie)
 

@@ -63,7 +63,21 @@ list (autonomy limits, lecture screenshot interval, audio channels, etc.). Copy 
 | `/notes` | otwiera dashboard notatek |
 | `/study add\|list\|done\|week` | terminy studenckie |
 | `/autonomy status\|queue\|tick\|approve\|reject` | podgląd i decyzje autonomii |
+| `/recall <fraza>` | semantyczne szukanie w notatkach z wykładów, researchu i rozmowach |
 | `/resume`, `/restart`, `/tasks`, `/help`, `/exit` | sesje, zadania, pomoc |
+
+## Vector memory (recall)
+
+Piorun ma semantyczną pamięć długoterminową (chromadb + wielojęzyczne embeddingi,
+w całości lokalnie): notatki z wykładów, research autonomii i podsumowania rozmów
+są indeksowane automatycznie, a model dostaje narzędzie `recall`. Projekt i decyzje:
+[`docs/vector-memory-design.md`](docs/vector-memory-design.md).
+
+```
+python scripts/reindex_memory.py --all     # backfill istniejących danych
+```
+
+Wyłącznik awaryjny: `PIORUN_MEMORY_RECALL_ENABLED=false` w `.env`.
 
 ## Tests
 

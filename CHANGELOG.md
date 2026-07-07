@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-07-07 — Pamięć wektorowa (roadmap 4.4)
+
+### Dodane
+- **`tools/vector_memory.py`**: cztery kolekcje chromadb (cosine) —
+  `lecture_notes`, `research_notes`, `session_summaries`, `documents`;
+  deterministyczne ID (idempotentne upserty), wielojęzyczne embeddingi
+  (`paraphrase-multilingual-MiniLM-L12-v2`, GPU przez zainstalowanego torcha)
+  z fallbackiem i wersjonowaniem modelu (`EmbeddingModelMismatch` zamiast
+  cichego mieszania przestrzeni). Pełny projekt: `docs/vector-memory-design.md`.
+- **Narzędzie `recall` dla modelu** (za flagą `PIORUN_MEMORY_RECALL_ENABLED`)
+  i komenda **`/recall <fraza>`** w CLI — semantyczne wyszukiwanie w notatkach
+  z wykładów, researchu autonomii i podsumowaniach rozmów, ze źródłem przy
+  każdym trafieniu.
+- **Hooki indeksujące** (nigdy nie blokują operacji głównej): notatki wykładowe
+  po wygenerowaniu, notatki autonomii po dopisaniu, podsumowania sesji po
+  odświeżeniu; **`scripts/reindex_memory.py`** do backfillu (`--all`, `--wipe`).
+- **15 testów** warstwy pamięci z fałszywym embedderem (zero sieci i pobierania
+  modeli w pytest); rollback-check flagi wyłączającej.
+
+### Naprawione
+- **`PersistentClient` chromy nigdy nie działał na tej maszynie**: równolegle
+  zainstalowany pakiet `chromadb-client` (thin) wymuszał tryb http-only —
+  dlatego `.memory_db` był zawsze pusty. Usunięty konflikt, ostrzeżenie
+  w `requirements.txt`.
+
+### Zweryfikowane
+- Backfill na realnych danych: 39 sekcji researchu + 9 podsumowań rozmów;
+  żywe zapytanie „nowe zagrożenia w cyberbezpieczeństwie" → trafienia
+  z dystansem 0.29; kontrola negatywna („przepis na bigos") → poprawne
+  „brak wspomnień". 51 testów pytest zielonych.
+
 ## 2026-07-06 — Fundament niezawodności (Etap 0)
 
 ### Naprawione
