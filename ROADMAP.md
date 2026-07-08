@@ -92,7 +92,7 @@ zdrowy.
 |---|---------|-------|---------|--------|
 | 3.1 | Subkomendy: `python piorun.py [chat\|doctor\|digest\|autonomy ...]`; bez argumentów = chat (zgodność z istniejącymi .bat); `autonomy` deleguje do istniejącego `scripts/autonomy_ops.py` | `piorun.py` | M | niskie |
 | 3.2 | `doctor`: LLM endpoint (jest `ops_runtime.check_llm_health`), model Whisper na dysku, import ddgs, credentials (istnienie, nie treść), bazy zapisywalne, urządzenie loopback, wolne miejsce na dysku workdir | nowy `core/doctor.py` | M | niskie |
-| 3.3 | Reorganizacja repo: `gemma_agent_v2/v3.py`, `gemma_run.py`, `diagnose_service.py` → `scripts/legacy/`; jednorazowe z `core/` (fix_db, final_cleanup, deep_diagnosis, final_status, force_wal, db_stress_test, clean_split, inject_task, verify_task, audit_migration, init_db) → `scripts/maintenance/` (git mv; grep potwierdził brak importów) | struktura repo | S | niskie |
+| 3.3 | ✅ ZREALIZOWANE (2026-07-07): 4 pliki legacy → `scripts/legacy/`, 11 jednorazowych z `core/` → `scripts/maintenance/` (git mv, importy i pytest potwierdzone po przenosinach) | struktura repo | S | niskie |
 | 3.4 | Retencja: rotacja `autonomy_logs/` i `decisions.jsonl` (archiwizacja > 90 dni do zip w backup_dir) | `core/ops_runtime.py` | S | niskie |
 | 3.5 | Backup automatyczny: istnieje `ops_runtime.create_backup` — wpiąć w harmonogram (tygodniowo, przy digestcie) + przycinanie starych backupów do N=8 | `tools/weekly_digest.py` | S | niskie |
 
