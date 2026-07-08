@@ -5,7 +5,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import core.autonomy_supervisor as autonomy
@@ -256,3 +256,55 @@ def create_backup(include_workdir=True):
                     files_added.append(arc)
 
     return {"backup_path": str(backup_path), "files_added": files_added, "timestamp": _now_iso()}
+
+
+def rotate_old_logs(retention_days=None):
+    """Archiwizuje dzienne logi autonomii starsze niz retencja do zip w backup_dir."""
+    retention = int(retention_days if retention_days is not None else SETTINGS.log_retention_days)
+    logs_dir = SETTINGS.allowed_root / "autonomy_logs"
+    if not logs_dir.is_dir():
+        return {"archived": []}
+    cutoff = datetime.now().date() - timedelta(days=retention)
+    to_archive = []
+    for p in logs_dir.glob("*.md"):
+        try:
+            file_date = datetime.strptime(p.stem, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if file_date < cutoff:
+            to_archive.append(p)
+    if not to_archive:
+        return {"archived": []}
+
+    SETTINGS.backup_dir.mkdir(parents=True, exist_ok=True)
+    zip_path = SETTINGS.backup_dir / f"autonomy_logs_archive_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    archived = []
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for p in to_archive:
+            zf.write(p, arcname=f"autonomy_logs/{p.name}")
+            archived.append(p.name)
+    for p in to_archive:
+        try:
+            p.unlink()
+        except Exception:
+            pass
+    return {"archived": archived, "zip": str(zip_path)}
+
+
+def prune_backups(keep=8):
+    """Zostawia najnowsze N backupow (piorun_backup_*.zip), reszte kasuje."""
+    if not SETTINGS.backup_dir.is_dir():
+        return []
+    backups = sorted(
+        SETTINGS.backup_dir.glob("piorun_backup_*.zip"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    removed = []
+    for p in backups[max(1, int(keep)):]:
+        try:
+            p.unlink()
+            removed.append(p.name)
+        except Exception:
+            pass
+    return removed

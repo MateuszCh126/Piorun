@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-07-07 — Sprint C: autonomia z wartością + operacje (roadmap 2.1–2.4, 3.4–3.5)
+
+### Dodane
+- **Przypomnienia o terminach** (2.1, `core/autonomy_supervisor.py`):
+  deterministyczna reguła (NIE przez LLM — zero halucynacji ID), mail
+  wyłącznie do właściciela z `agent_credentials.json`, dedup po ID terminu
+  z cooldownem. Wysyła, gdy termin < 48 h (env `PIORUN_AUTONOMY_REMINDER_HOURS`).
+- **Tygodniowy digest** (2.2, `tools/weekly_digest.py`): deterministyczna
+  agregacja 7 dni (ticki, akcje, decyzje kolejki, notatki research, terminy)
+  → markdown do workdir, opcjonalny mail (`--email`); `python piorun.py digest`.
+- **TTL kolejki** (2.3): pozycje `execution_failed` starsze niż 7 dni
+  (`PIORUN_AUTONOMY_FAILED_TTL_DAYS`) wygasają automatycznie w każdym ticku.
+- **Metryka jakości źródeł** (2.4): stopka w notatkach research — liczba
+  wyników, unikalnych domen i wyników z bieżącego roku.
+- **Retencja logów + auto-backup** (3.4, 3.5, `core/ops_runtime.py`):
+  `rotate_old_logs` archiwizuje dzienne logi > 90 dni do zip, `prune_backups`
+  zostawia 8 najnowszych; oba wpięte w digest.
+
+### Zweryfikowane
+- Żywy digest z prawdziwych danych: 154 ticki, 43 akcje, 43 sekcje research.
+- 15 nowych testów (przypomnienia z mockiem mailera + dedup, TTL, metryka,
+  rotacja logów, prune backupów, digest); 80 testów łącznie.
+
 ## 2026-07-07 — Sprint B: OCR, doctor, ujednolicone CLI (roadmap 3.1–3.2)
 
 ### Dodane

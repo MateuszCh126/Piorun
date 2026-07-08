@@ -684,6 +684,41 @@ def _format_search_results(raw_result: str) -> str:
     return "\n".join(lines)
 
 
+def _source_metrics(raw_result: str) -> dict:
+    """Metryka jakosci zrodel: ile wynikow, unikalnych domen, ile z biezacego roku."""
+    try:
+        parsed = json.loads(str(raw_result))
+    except Exception:
+        return {}
+    if not isinstance(parsed, list):
+        return {}
+    import urllib.parse
+
+    year = str(datetime.now().year)
+    domains, current_year = set(), 0
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        href = str(item.get("href", ""))
+        if href:
+            netloc = urllib.parse.urlparse(href).netloc.lower()
+            if netloc:
+                domains.add(netloc)
+        if year in f"{item.get('title','')} {item.get('body','')}":
+            current_year += 1
+    return {"count": len(parsed), "domains": len(domains), "current_year": current_year}
+
+
+def _source_footer(metrics: dict) -> str:
+    if not metrics:
+        return ""
+    return (
+        f"\n\n---\n_Jakosc zrodel: {metrics.get('count', 0)} wynikow, "
+        f"{metrics.get('domains', 0)} unikalnych domen, "
+        f"{metrics.get('current_year', 0)} z biezacego roku._"
+    )
+
+
 def _execute_low_risk_action(action):
     import core.brain as brain
 
@@ -696,7 +731,8 @@ def _execute_low_risk_action(action):
         formatted = _format_search_results(str(res))
         if not formatted:
             return {"ok": False, "result": f"web_search bez uzytecznych wynikow: {_clip_text(str(res), 200)}"}
-        note_body = formatted
+        metrics = _source_metrics(str(res))
+        note_body = formatted + _source_footer(metrics)
         try:
             synthesis = _call_llm_text(
                 "Na podstawie ponizszych wynikow wyszukiwania napisz zwiezla notatke: "
@@ -704,11 +740,15 @@ def _execute_low_risk_action(action):
                 f"Temat: {query}\n\nWyniki:\n{formatted}"
             )
             if len(synthesis) >= 100:
-                note_body = f"{synthesis}\n\n---\nSurowe wyniki:\n{formatted}"
+                note_body = f"{synthesis}\n\n---\nSurowe wyniki:\n{formatted}" + _source_footer(metrics)
         except Exception:
             pass
         note_path = _append_note(f"Autonomy Research: {query}", note_body)
-        return {"ok": True, "result": f"web_search wykonane, note: {note_path}"}
+        return {
+            "ok": True,
+            "result": f"web_search wykonane, note: {note_path}",
+            "metrics": metrics,
+        }
     if action_type == "write_note":
         title = str(action.get("title", "Autonomy Note")).strip() or "Autonomy Note"
         content = str(action.get("content", "")).strip()
@@ -827,9 +867,105 @@ def _drain_auto_queue(state: dict, event: dict, web_count: int, exec_budget: int
     return web_count, executed_count
 
 
+def _prune_failed_queue(queue_items: list[dict]) -> tuple[list[dict], bool]:
+    """Wygasza pozycje 'execution_failed' starsze niz TTL (env FAILED_TTL_DAYS)."""
+    ttl_days = max(1, int(SETTINGS.autonomy_failed_ttl_days))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=ttl_days)
+    kept, changed = [], False
+    for item in queue_items:
+        reason = str(item.get("reason_blocked", "")).lower()
+        if reason.startswith("execution_failed"):
+            ts = _parse_iso(item.get("last_try_at") or item.get("created_at"))
+            if ts is not None and ts < cutoff:
+                changed = True
+                continue
+        kept.append(item)
+    return kept, changed
+
+
+def _parse_deadline_dt(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw)
+    except Exception:
+        return None
+
+
+def _process_deadline_reminders(state: dict, event: dict):
+    """Deterministyczne przypomnienia: mail do wlasciciela o terminie < N godzin.
+
+    Nie zalezy od LLM (zero halucynacji ID); mail wylacznie do domyslnego
+    odbiorcy z agent_credentials.json; dedup po ID terminu z cooldownem.
+    """
+    if not SETTINGS.autonomy_reminders_enabled:
+        return
+    try:
+        import core.brain as brain
+        import tools.study_deadlines as study
+    except Exception as e:
+        event["errors"].append(f"reminders_import: {e}")
+        return
+
+    recipient = brain._get_default_recipient()
+    if not recipient:
+        return  # brak odbiorcy = brak przypomnien (np. srodowisko testowe)
+
+    now = datetime.now()
+    horizon = now + timedelta(hours=max(1, int(SETTINGS.autonomy_reminder_hours)))
+    cooldown = timedelta(minutes=max(1, int(SETTINGS.autonomy_reminder_cooldown_minutes)))
+
+    reminded = state.get("reminders", {})
+    if not isinstance(reminded, dict):
+        reminded = {}
+    # Sprzataj stare wpisy (>30 dni).
+    old_cut = datetime.now(timezone.utc) - timedelta(days=30)
+    for did in list(reminded.keys()):
+        at = _parse_iso(reminded.get(did))
+        if at is None or at < old_cut:
+            reminded.pop(did, None)
+
+    try:
+        deadlines = study.list_deadlines(limit=50, include_done=False)
+    except Exception as e:
+        event["errors"].append(f"reminders_query: {e}")
+        return
+
+    for d in deadlines:
+        due = _parse_deadline_dt(d.get("due_at"))
+        if due is None or not (now <= due <= horizon):
+            continue
+        did = str(d.get("id"))
+        last = _parse_iso(reminded.get(did))
+        if last is not None and last >= datetime.now(timezone.utc) - cooldown:
+            continue
+        subject = f"Przypomnienie: {d.get('subject', '')} - {d.get('title', '')}"
+        body = (
+            f"Zblizajacy sie termin.\n\n"
+            f"Przedmiot: {d.get('subject', '')}\n"
+            f"Zadanie: {d.get('title', '')}\n"
+            f"Termin: {d.get('due_at', '')}\n"
+            f"Priorytet: {d.get('priority', '')}\n"
+            + (f"Notatka: {d.get('notes', '')}\n" if d.get("notes") else "")
+            + "\n— Asystent Mateusza"
+        )
+        try:
+            status = brain.mailer.send_email(to_email=recipient, subject=subject, body=body)
+        except Exception as e:
+            status = f"blad: {e}"
+        reminded[did] = _now_iso()
+        event["executed"].append(
+            {"title": f"reminder: {d.get('title', '')}", "action_type": "send_reminder", "result": str(status)}
+        )
+
+    state["reminders"] = reminded
+
+
 def autonomy_tick():
     """
     Jedna iteracja autonomii:
+    - przypomina o zblizajacych sie terminach (deterministycznie),
     - planuje propozycje,
     - automatycznie wykonuje tylko low-risk z wysoką pewnością,
     - resztę wrzuca do kolejki akceptacji.
@@ -841,7 +977,8 @@ def autonomy_tick():
 
     queue_items = _load_queue()
     queue_items, queue_changed = _dedupe_queue_items(queue_items)
-    if queue_changed:
+    queue_items, failed_pruned = _prune_failed_queue(queue_items)
+    if queue_changed or failed_pruned:
         _save_queue(queue_items)
 
     event = {
@@ -854,6 +991,13 @@ def autonomy_tick():
         "skipped": [],
         "errors": [],
     }
+
+    # Deterministyczne przypomnienia o terminach - przed planowaniem LLM.
+    try:
+        _process_deadline_reminders(state, event)
+    except Exception as e:
+        event["errors"].append(f"reminders: {e}")
+
     try:
         plan = _propose_actions(state=state, queue_items=queue_items)
         proposals = plan.get("proposals", [])[:3]

@@ -69,6 +69,10 @@ otwarty HTML z tekstem ze slajdu w notatce; `pytest` zawiera test integracyjny.
 **Cel:** autonomiczne akcje mają mierzalną wartość; system sam raportuje, co
 zrobił, i sam sprząta po nieudanych próbach.
 
+> **Status (2026-07-07): 2.1, 2.2, 2.3, 2.4 ZREALIZOWANE.** Zostaje 2.5
+> (pętla zwrotna plannera). 2.1 zrobione DETERMINISTYCZNIE (nie przez LLM):
+> pewniejsze i bez halucynacji ID terminów.
+
 | # | Zadanie | Pliki | Rozmiar | Ryzyko |
 |---|---------|-------|---------|--------|
 | 2.1 | Akcja `send_reminder`: mail o terminie WYŁĄCZNIE do właściciela (istniejąca polityka), fingerprint+cooldown jak dla innych akcji, planner instruowany „tylko gdy termin <48 h i nie było przypomnienia" | `core/autonomy_supervisor.py` | M | średnie: spam — mitygacja przez cooldown 720 min i dedup po ID terminu |
@@ -85,6 +89,9 @@ starszych niż 7 dni, przyszedł ≥1 sensowny digest.
 
 **Cel:** koniec żonglowania czterema .bat; jedna komenda mówi, czy system jest
 zdrowy.
+
+> **Status (2026-07-07): 3.1, 3.2, 3.3, 3.4, 3.5 ZREALIZOWANE** — cały Etap 3
+> gotowy (retencja logów i auto-backup wpięte w tygodniowy digest).
 
 | # | Zadanie | Pliki | Rozmiar | Ryzyko |
 |---|---------|-------|---------|--------|

@@ -69,6 +69,11 @@ class Settings:
     memory_embedding_model: str
     memory_recall_top_k: int
     memory_recall_max_distance: float
+    autonomy_failed_ttl_days: int
+    autonomy_reminders_enabled: bool
+    autonomy_reminder_hours: int
+    autonomy_reminder_cooldown_minutes: int
+    log_retention_days: int
 
 
 def _path_from_env(name: str, default: Path) -> Path:
@@ -164,6 +169,11 @@ def _build_settings() -> Settings:
     )
     memory_recall_top_k = _int_from_env("PIORUN_MEMORY_RECALL_TOP_K", 5)
     memory_recall_max_distance = _float_from_env("PIORUN_MEMORY_RECALL_MAX_DISTANCE", 0.65)
+    autonomy_failed_ttl_days = _int_from_env("PIORUN_AUTONOMY_FAILED_TTL_DAYS", 7)
+    autonomy_reminders_enabled = _bool_from_env("PIORUN_AUTONOMY_REMINDERS_ENABLED", True)
+    autonomy_reminder_hours = _int_from_env("PIORUN_AUTONOMY_REMINDER_HOURS", 48)
+    autonomy_reminder_cooldown_minutes = _int_from_env("PIORUN_AUTONOMY_REMINDER_COOLDOWN_MINUTES", 1200)
+    log_retention_days = _int_from_env("PIORUN_LOG_RETENTION_DAYS", 90)
 
     return Settings(
         project_root=PROJECT_ROOT,
@@ -208,6 +218,11 @@ def _build_settings() -> Settings:
         memory_embedding_model=memory_embedding_model,
         memory_recall_top_k=memory_recall_top_k,
         memory_recall_max_distance=memory_recall_max_distance,
+        autonomy_failed_ttl_days=autonomy_failed_ttl_days,
+        autonomy_reminders_enabled=autonomy_reminders_enabled,
+        autonomy_reminder_hours=autonomy_reminder_hours,
+        autonomy_reminder_cooldown_minutes=autonomy_reminder_cooldown_minutes,
+        log_retention_days=log_retention_days,
     )
 
 
