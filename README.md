@@ -42,7 +42,7 @@ GUI / Ops API  ──►  Agent runtime (Gemma via llama.cpp, tool-calling)
 
 ```
 pip install -r requirements.txt
-copy .env.example .env   # i dostosuj wartości
+copy .env.example .env   # then adjust the values
 ```
 
 > **Note:** the local model weights (`*.gguf`), llama.cpp binaries and any credential files are **not**
@@ -56,28 +56,28 @@ list (autonomy limits, lecture screenshot interval, audio channels, etc.). Copy 
 
 ## CLI commands (piorun.py)
 
-| Komenda | Działanie |
+| Command | What it does |
 |---|---|
-| `/lecture <przedmiot>` / `/stop` | start/stop nagrywania wykładu (audio + slajdy) |
-| `/process [przedmiot]` | batch: transkrypcja → notatki → HTML (wznawialny, odporny na błędy) |
-| `/notes` | otwiera dashboard notatek |
-| `/study add\|list\|done\|week` | terminy studenckie |
-| `/autonomy status\|queue\|tick\|approve\|reject` | podgląd i decyzje autonomii |
-| `/recall <fraza>` | semantyczne szukanie w notatkach z wykładów, researchu i rozmowach |
-| `/resume`, `/restart`, `/tasks`, `/help`, `/exit` | sesje, zadania, pomoc |
+| `/lecture <subject>` / `/stop` | start/stop lecture recording (audio + slides) |
+| `/process [subject]` | batch: transcription → notes → HTML (resumable, error-tolerant) |
+| `/notes` | opens the notes dashboard |
+| `/study add\|list\|done\|week` | study deadlines |
+| `/autonomy status\|queue\|tick\|approve\|reject` | inspect and decide on autonomy actions |
+| `/recall <phrase>` | semantic search across lecture notes, research and conversations |
+| `/resume`, `/restart`, `/tasks`, `/help`, `/exit` | sessions, tasks, help |
 
 ## Vector memory (recall)
 
-Piorun ma semantyczną pamięć długoterminową (chromadb + wielojęzyczne embeddingi,
-w całości lokalnie): notatki z wykładów, research autonomii i podsumowania rozmów
-są indeksowane automatycznie, a model dostaje narzędzie `recall`. Projekt i decyzje:
+Piorun keeps a semantic long-term memory (chromadb + multilingual embeddings,
+fully local): lecture notes, autonomy research and conversation summaries are
+indexed automatically, and the model gets a `recall` tool. Design and rationale:
 [`docs/vector-memory-design.md`](docs/vector-memory-design.md).
 
 ```
-python scripts/reindex_memory.py --all     # backfill istniejących danych
+python scripts/reindex_memory.py --all     # backfill existing data
 ```
 
-Wyłącznik awaryjny: `PIORUN_MEMORY_RECALL_ENABLED=false` w `.env`.
+Kill switch: `PIORUN_MEMORY_RECALL_ENABLED=false` in `.env`.
 
 ## Tests
 
@@ -85,13 +85,13 @@ Wyłącznik awaryjny: `PIORUN_MEMORY_RECALL_ENABLED=false` w `.env`.
 python -m pytest
 ```
 
-Testy działają w pełni odizolowanym środowisku (katalogi tymczasowe przez zmienne
-`PIORUN_*`) — nie dotykają prawdziwych baz ani folderu roboczego.
+Tests run in a fully isolated environment (temp directories via `PIORUN_*`
+variables) — they never touch real databases or the working folder.
 
 ## Development
 
-Plan rozwoju z etapami i kryteriami ukończenia: [`ROADMAP.md`](ROADMAP.md).
-Historia zmian: [`CHANGELOG.md`](CHANGELOG.md).
+Staged development plan with completion criteria: [`ROADMAP.md`](ROADMAP.md).
+Change history: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Status
 
