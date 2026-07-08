@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-07-07 — Sprint D: baza wiedzy (roadmap 4.1–4.3)
+
+### Dodane
+- **Pełnotekstowe `/find <fraza>`** (4.1, `tools/knowledge_index.py`): indeks
+  SQLite FTS5 nad notatkami wszystkich wykładów; wyniki z przedmiotem, datą,
+  fragmentem i linkiem do HTML. Uzupełnia semantyczne `/recall` (frazy vs
+  znaczenie). Notatki indeksowane automatycznie po `/process`.
+- **Fiszki Anki** (4.2, `tools/flashcards.py`): `/flashcards <przedmiot>`
+  wyciąga „Pytania kontrolne" z notatek i paruje z kluczowymi pojęciami →
+  TSV importowalny do Anki (Basic, separator TAB).
+- **Notatki ↔ terminy** (4.3): `/study list` pokazuje liczbę notatek
+  z danego przedmiotu przy każdym terminie.
+
+### Zweryfikowane
+- 16 nowych testów (indeksowanie i wyszukiwanie FTS, idempotencja, sanityzacja
+  zapytań, ekstrakcja fiszek, eksport TSV); 90 testów łącznie.
+
 ## 2026-07-07 — Sprint C: autonomia z wartością + operacje (roadmap 2.1–2.4, 3.4–3.5)
 
 ### Dodane

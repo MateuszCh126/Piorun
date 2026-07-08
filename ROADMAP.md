@@ -110,6 +110,9 @@ struktura repo bez śmieci na poziomie root/core.
 **Cel:** notatki przestają być plikami, stają się bazą wiedzy, która odpowiada
 na pytania i przygotowuje do egzaminów.
 
+> **Status (2026-07-07): 4.1, 4.2, 4.3, 4.4 ZREALIZOWANE.** Zostaje 4.5 (quiz)
+> i 4.4-recall→planner (semantyczna dedup — Etap E).
+
 | # | Zadanie | Pliki | Rozmiar | Ryzyko |
 |---|---------|-------|---------|--------|
 | 4.1 | Indeks pełnotekstowy: SQLite FTS5 nad `notes_structured.json` wszystkich sesji + komenda `/find <fraza>` (wyniki: przedmiot, data, fragment, link do HTML) | nowy `tools/knowledge_index.py`, `piorun.py` | M | niskie: FTS5 jest w stdlib sqlite |

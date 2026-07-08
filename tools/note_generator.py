@@ -132,6 +132,13 @@ def generate_academic_notes(session_dir, subject):
     except Exception as e:
         print(f"[!] Pamiec: indeksowanie nie powiodlo sie: {e}")
 
+    # Indeks pelnotekstowy (FTS) - dla /find. Rowniez nie blokuje zapisu.
+    try:
+        import tools.knowledge_index as knowledge_index
+        knowledge_index.index_session(session_dir, subject)
+    except Exception as e:
+        print(f"[!] Indeks FTS nie powiodl sie: {e}")
+
     return output_path
 
 def build_prompt(text, prev_context, slide, slide_text=""):

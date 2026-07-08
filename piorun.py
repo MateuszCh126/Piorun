@@ -190,7 +190,8 @@ class PiorunCompleter(Completer):
         if text.startswith("/"):
             commands = [
                 '/help', '/clear', '/exit', '/tasks', '/schedule',
-                '/lecture', '/stop', '/process', '/notes', '/resume', '/restart', '/study', '/autonomy', '/recall'
+                '/lecture', '/stop', '/process', '/notes', '/resume', '/restart', '/study', '/autonomy',
+                '/recall', '/find', '/flashcards'
             ]
             for cmd in commands:
                 if cmd.startswith(text):
@@ -276,6 +277,7 @@ def piorun_cli():
                     print("[AUTONOMIA] /autonomy status | queue | tick | approve <id> | reject <id> [powod]")
                     print("[WYKLADY] /lecture <przedmiot> | /stop | /process [przedmiot] | /notes")
                     print("[PAMIEC] /recall <fraza> - semantyczne szukanie w notatkach i rozmowach")
+                    print("[WIEDZA] /find <fraza> - pelnotekstowe szukanie w notatkach | /flashcards <przedmiot>")
                     continue
                 elif cmd == "/restart":
                     session_id = str(int(time.time()))
@@ -437,11 +439,20 @@ def piorun_cli():
                         if not rows:
                             print("\n[*] Brak terminow.")
                             continue
+                        try:
+                            import tools.knowledge_index as ki
+                        except Exception:
+                            ki = None
                         print("\n[TERMINY STUDY]")
                         for r in rows:
+                            note_hint = ""
+                            if ki is not None:
+                                info = ki.notes_for_subject(r['subject'])
+                                if info["count"]:
+                                    note_hint = f" | notatki: {info['count']}"
                             print(
                                 f"- ID:{r['id']} | {r['subject']} | {r['title']} | due: {r['due_at']} "
-                                f"| prio:{r['priority']} | status:{r['status']}"
+                                f"| prio:{r['priority']} | status:{r['status']}{note_hint}"
                             )
                         continue
                     if subcmd == "done":
@@ -479,6 +490,33 @@ def piorun_cli():
                         print("\n" + vector_memory.format_recall_for_human(hits))
                     except Exception as e:
                         print(f"\n[!] Blad pamieci: {e}")
+                    continue
+                elif cmd == "/find":
+                    query = user_input.strip()[len("/find"):].strip()
+                    if not query:
+                        print("\n[!] Uzycie: /find <fraza>")
+                        continue
+                    try:
+                        import tools.knowledge_index as ki
+                        print("\n" + ki.format_for_human(query, ki.search(query)))
+                    except Exception as e:
+                        print(f"\n[!] Blad wyszukiwania: {e}")
+                    continue
+                elif cmd == "/flashcards":
+                    subject = user_input.strip()[len("/flashcards"):].strip()
+                    if not subject:
+                        print("\n[!] Uzycie: /flashcards <przedmiot>")
+                        continue
+                    try:
+                        import tools.flashcards as fc
+                        path, n = fc.export_tsv(subject)
+                        if path:
+                            print(f"\n[FISZKI] {n} fiszek zapisano: {path}")
+                            print("[*] Import do Anki: File → Import, typ 'Basic', separator TAB.")
+                        else:
+                            print(f"\n[!] Brak pytan kontrolnych w notatkach dla: {subject}")
+                    except Exception as e:
+                        print(f"\n[!] Blad fiszek: {e}")
                     continue
                 elif cmd == "/autonomy":
                     import core.ops_runtime as ops
