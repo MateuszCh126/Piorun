@@ -49,19 +49,17 @@ wykładów, retry LLM, wznawialny `/process`, deterministyczny raport poranny,
 **Cel:** od `/stop` do gotowej, przeszukiwalnej notatki bez ani jednej ręcznej
 decyzji; pipeline odporny na wszystko poza brakiem prądu.
 
-> **Status (2026-07-07): 1.1, 1.2, 1.3, 1.5, 1.6 ZREALIZOWANE.**
-> Zostaje 1.4 (OCR slajdów — sprint B, `rapidocr` już zweryfikowany) i 1.7
-> (podpowiedź języka transkrypcji).
+> **Status (2026-07-07): CAŁY ETAP 1 ZREALIZOWANY** (1.1–1.7).
 
 | # | Zadanie | Pliki | Rozmiar | Ryzyko |
 |---|---------|-------|---------|--------|
 | 1.1 | Auto-process po `/stop`: pytanie „przetworzyć teraz? [T/n]", refaktor wspólnego `process_session()` używanego przez `/stop` i `/process` | `piorun.py` | S | niskie |
 | 1.2 | Detekcja ciszy: RMS ramek (numpy), ostrzeżenie po 60 s ciszy (env `PIORUN_LECTURE_SILENCE_WARN_SECONDS`), statystyka max ciszy w podsumowaniu | `tools/lecture_recorder.py` | S | niskie |
 | 1.3 | Fallback urządzenia: gdy loopback domyślnego wyjścia nie znaleziony — pierwszy dostępny loopback z ostrzeżeniem zamiast odmowy startu | `tools/lecture_recorder.py` | S | niskie |
-| 1.4 | OCR slajdów (rapidocr, opcjonalny import z graceful fallback): `tools/slide_ocr.py`, cache `ocr_cache.json` per sesja, tekst slajdu w promptcie notatek `[TEKST ZE SLAJDU]` | nowy + `tools/note_generator.py` | M | średnie: jakość OCR na slajdach z kodem — zweryfikować na realnej sesji z repo |
+| 1.4 | ✅ ZREALIZOWANE (2026-07-07): `tools/slide_ocr.py` (rapidocr, graceful fallback, cache `ocr_cache.json`), tekst slajdu w promptcie `[TEKST ZE SLAJDU (OCR)]` za flagą `PIORUN_LECTURE_OCR_SLIDES`; zweryfikowany na realnym slajdzie z repo | `tools/slide_ocr.py`, `note_generator.py` | M | — |
 | 1.5 | Eksport DOCX: nagłówki/listy/bold + osadzone slajdy, zapis obok HTML, flaga env `PIORUN_LECTURE_EXPORT_DOCX` | nowy `tools/docx_export.py`, `piorun.py` | M | niskie (python-docx już w projekcie) |
 | 1.6 | Test integracyjny pipeline'u: fixture transcript.json + slajd → notatki (LLM zamockowany) → HTML → DOCX; bez Whispera i bez modelu | `tests/test_lecture_pipeline.py` | M | niskie |
-| 1.7 | Podpowiedź języka transkrypcji (env `PIORUN_LECTURE_LANGUAGE`, domyślnie auto) — mniejsza szansa błędnej detekcji przy cichym początku | `tools/whisper_bridge.py` | S | niskie |
+| 1.7 | ✅ ZREALIZOWANE (2026-07-07): env `PIORUN_LECTURE_LANGUAGE` (domyślnie auto) przekazany do `model.transcribe(language=...)` | `tools/whisper_bridge.py` | S | — |
 
 **Kryterium ukończenia:** świeże nagranie 2-minutowe przechodzi `/stop` → [T] →
 otwarty HTML z tekstem ze slajdu w notatce; `pytest` zawiera test integracyjny.

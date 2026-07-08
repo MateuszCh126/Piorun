@@ -89,7 +89,9 @@ def transcribe_session(session_dir):
         model = WhisperModel(MODEL_PATH, device="cpu", compute_type="int8")
 
     print("[*] Rozpoczynanie transkrypcji...")
-    segments, info = model.transcribe(audio_ready, beam_size=5)
+    # Podpowiedz jezyka: przy cichym poczatku Whisper czasem myli detekcje.
+    language = os.environ.get("PIORUN_LECTURE_LANGUAGE", "").strip() or None
+    segments, info = model.transcribe(audio_ready, beam_size=5, language=language)
     
     results = []
     print(f"[*] Wykryto język: {info.language} (Prawdop: {info.language_probability:.2f})")

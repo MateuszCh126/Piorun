@@ -62,6 +62,17 @@ def generate_academic_notes(session_dir, subject):
         with open(timeline_path, 'r', encoding='utf-8') as f:
             slides = json.load(f)
 
+    # OCR slajdow (opcjonalny) - tekst ze slajdu trafia do promptu notatek.
+    ocr_cache = {}
+    if os.environ.get("PIORUN_LECTURE_OCR_SLIDES", "false").strip().lower() in {"1", "true", "yes", "y", "on"}:
+        try:
+            import tools.slide_ocr as slide_ocr
+            if slide_ocr.ocr_available():
+                print("[*] OCR slajdow...")
+                ocr_cache = slide_ocr.ocr_session_slides(session_dir)
+        except Exception as e:
+            print(f"[!] OCR slajdow pominiety: {e}")
+
     # 1. Podział na Chunki
     chunks = split_transcript_into_chunks(transcript, CHUNK_DURATION)
 
@@ -71,11 +82,12 @@ def generate_academic_notes(session_dir, subject):
 
     for idx, chunk in enumerate(chunks):
         print(f"[*] Przetwarzanie części {idx+1}/{len(chunks)} ({chunk['start']}s - {chunk['end']}s)...")
-        
+
         # Znajdź slajd dla tej części (ostatni wyświetlony przed połową chunku)
         best_slide = pick_slide_for_chunk(slides, chunk['start'], chunk['end'])
-        
-        prompt = build_prompt(chunk['text'], previous_summary, best_slide)
+        slide_text = ocr_cache.get(best_slide, "") if best_slide else ""
+
+        prompt = build_prompt(chunk['text'], previous_summary, best_slide, slide_text)
         
         # Wywołanie Mózgu Pioruna (bezpośrednio przez execute_brain_loop z historii)
         history = [
@@ -122,12 +134,13 @@ def generate_academic_notes(session_dir, subject):
 
     return output_path
 
-def build_prompt(text, prev_context, slide):
+def build_prompt(text, prev_context, slide, slide_text=""):
     context_str = f"\n[KONTEKST POPRZEDNIEJ CZĘŚCI]:\n{prev_context}\n" if prev_context else ""
     slide_str = f"\n[WIZUALIZACJA]: Na ekranie wyświetlany jest slajd: {os.path.basename(slide)}\n" if slide else ""
-    
+    slide_ocr_str = f"\n[TEKST ZE SLAJDU (OCR)]:\n{slide_text.strip()}\n" if slide_text and slide_text.strip() else ""
+
     return f"""Jako Piorun ⚡ Academic Mode, przygotuj profesjonalne notatki z fragmentu wykładu.
-{context_str}{slide_str}
+{context_str}{slide_str}{slide_ocr_str}
 [TRANSKRYPCJA]:
 {text}
 
