@@ -16,6 +16,56 @@ def _json_bytes(payload):
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
+def _panel_html():
+    return """<!DOCTYPE html>
+<html lang="pl"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piorun ⚡ Panel</title>
+<style>
+:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--accent:#f0c040;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;margin:0;padding:24px;line-height:1.5;}
+h1{color:var(--accent);}h2{color:#fff;border-bottom:1px solid var(--border);padding-bottom:6px;margin-top:32px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;}
+.stat{display:inline-block;margin-right:24px;}
+.stat b{color:var(--accent);font-size:1.4em;display:block;}
+button{background:var(--border);color:var(--text);border:0;border-radius:6px;padding:8px 14px;margin-right:6px;cursor:pointer;font-size:0.9em;}
+button:hover{background:#2d333b;}
+button.approve{background:#238636;color:#fff;}button.reject{background:#8b2c2c;color:#fff;}button.primary{background:var(--accent);color:#000;}
+.muted{opacity:0.6;font-size:0.85em;}
+</style></head><body>
+<h1>Piorun ⚡ Panel operacyjny</h1>
+<div id="state" class="card">Ładowanie…</div>
+<button class="primary" onclick="tick()">Uruchom tick teraz</button>
+<button onclick="refresh()">Odśwież</button>
+<h2>Kolejka akceptacji</h2>
+<div id="queue">Ładowanie…</div>
+<script>
+async function jget(u){const r=await fetch(u);return r.json();}
+async function jpost(u,b){const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});return r.json();}
+async function refresh(){
+  const s=await jget('/autonomy/state');
+  document.getElementById('state').innerHTML=
+    `<span class="stat"><b>${s.enabled}</b>autonomia</span>`+
+    `<span class="stat"><b>${s.queue_size}</b>w kolejce</span>`+
+    `<span class="stat"><b>${s.ticks_count}</b>ticki</span>`+
+    `<span class="stat"><b>${s.autoexec_count_this_hour}</b>akcje/h</span>`+
+    `<div class="muted">Ostatni tick: ${s.last_tick_at||'—'}</div>`;
+  const q=(await jget('/autonomy/queue?limit=50')).items||[];
+  if(!q.length){document.getElementById('queue').innerHTML='<div class="muted">Kolejka pusta.</div>';return;}
+  document.getElementById('queue').innerHTML=q.map(function(it){
+    const a=it.action||{};
+    return `<div class="card"><b>${(it.title||'').replace(/</g,'&lt;')}</b>`+
+      `<div class="muted">akcja=${a.type||''} | conf=${it.confidence} | blokada=${it.reason_blocked||''}</div>`+
+      `<button class="approve" onclick="decide('${it.id}','approve')">Zatwierdź</button>`+
+      `<button class="reject" onclick="decide('${it.id}','reject')">Odrzuć</button></div>`;
+  }).join('');
+}
+async function decide(id,d){await jpost('/autonomy/decision',{id:id,decision:d});refresh();}
+async function tick(){await jpost('/autonomy/tick',{});refresh();}
+refresh();
+</script></body></html>"""
+
+
 def _to_int(value, default):
     try:
         return int(value)
@@ -31,6 +81,18 @@ class OpsHandler(BaseHTTPRequestHandler):
         try:
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return True
+        except OSError:
+            return False
+
+    def _send_html(self, status, html):
+        body = html.encode("utf-8")
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -56,6 +118,8 @@ class OpsHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         try:
+            if path in ("/", "/panel"):
+                return self._send_html(200, _panel_html())
             if path == "/health":
                 return self._send_json(200, ops.get_runtime_health())
             if path == "/status":

@@ -129,11 +129,15 @@ przed kolokwium da się wygenerować talię fiszek z całego przedmiotu jedną k
 **Cel:** rzeczy, które są niewygodne w terminalu, dostają lekki front — bez
 przepisywania rdzenia.
 
+> **Status (2026-07-07): 5.1, 5.2 ZREALIZOWANE.** 5.3 (mobilny) świadomie
+> ODŁOŻONE — wejście z zewnątrz to nowa powierzchnia ataku, wymaga wyraźnej
+> decyzji właściciela; nie buduję tego autonomicznie.
+
 | # | Zadanie | Rozmiar | Uwagi |
 |---|---------|---------|-------|
-| 5.1 | Panel www (FastAPI + jeden plik HTML): kolejka autonomii (approve/reject), digest, health — na bazie istniejącego `ops_api_server.py` | L | zamiast rozbudowy 40 KB tkinter GUI; localhost-only |
-| 5.2 | Dashboard notatek 2.0: wyszukiwarka (FTS z 4.1), tagi przedmiotów, ostatnio otwierane | M | rozbudowa `core/html_builder.py` |
-| 5.3 | Kanał mobilny (opcjonalny, do decyzji): powiadomienia przez istniejący mail; ewentualny bot (np. Telegram) tylko read-only + approve/reject kolejki | L | UWAGA: wejście z zewnątrz = nowa powierzchnia ataku; wymaga osobnej decyzji właściciela |
+| 5.1 | ✅ ZREALIZOWANE (2026-07-07): panel www w `ops_api_server.py` (stdlib http.server, zero zależności, localhost-only) — kolejka approve/reject, tick, stan; zweryfikowany HTTP-em | L | bez FastAPI — rozszerzony istniejący serwer |
+| 5.2 | ✅ ZREALIZOWANE (2026-07-07): wyszukiwarka w dashboardzie notatek (filtr po przedmiocie/dacie, client-side) | M | — |
+| 5.3 | Kanał mobilny (opcjonalny, do decyzji) | L | ODŁOŻONE: wejście z zewnątrz = nowa powierzchnia ataku; wymaga decyzji właściciela |
 
 **Kryterium ukończenia (5.1–5.2):** kolejkę autonomii da się przejrzeć
 i rozstrzygnąć z przeglądarki; notatki mają wyszukiwarkę.

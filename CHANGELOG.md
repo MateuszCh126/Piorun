@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-07 — Panel operacyjny www (roadmap 5.1)
+
+### Dodane
+- **Panel www autonomii** (`tools/ops_api_server.py`): strona `/` (stdlib
+  `http.server`, zero zależności, localhost-only) — podgląd stanu, kolejka
+  z przyciskami Zatwierdź/Odrzuć, „Uruchom tick", odświeżanie; woła istniejące
+  endpointy JSON. Zamiast FastAPI rozszerzono istniejący serwer ops.
+  Zweryfikowany HTTP-em (serwuje HTML + `/autonomy/state` zwraca realny stan).
+  2 nowe testy; 101 łącznie.
+
 ## 2026-07-07 — Sprint E: szlif (roadmap 2.5, 4.5, 5.2, 6.1, 6.3, 6.4)
 
 ### Dodane
