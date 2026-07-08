@@ -23,8 +23,9 @@ def check_llm():
         import core.ops_runtime as ops
 
         health = ops.check_llm_health()
+        profile = f"[{SETTINGS.llm_profile}] "
         return _check("LLM endpoint", health["ok"],
-                      health.get("endpoint", "") if health["ok"] else health.get("error", ""))
+                      profile + (health.get("endpoint", "") if health["ok"] else health.get("error", "")))
     except Exception as e:
         return _check("LLM endpoint", False, str(e))
 

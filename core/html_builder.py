@@ -169,6 +169,11 @@ def update_index():
 </nav>
 <main class="content">
     <h1>Baza Wiedzy Akademickiej</h1>
+    <input type="text" id="searchBox" placeholder="Szukaj: przedmiot lub data…"
+           style="width:100%; box-sizing:border-box; padding:12px; margin-bottom:25px;
+                  background:var(--surface); border:1px solid var(--border);
+                  border-radius:8px; color:var(--text); font-size:1em;">
+    <p id="noResults" style="display:none; opacity:0.6;">Brak pasujących wykładów.</p>
 """]
 
     if not subjects:
@@ -183,8 +188,37 @@ def update_index():
                 html.append(f'<a href="{sub}/{lec}" class="lecture-link">🗓️ Wykład z dnia {date_only}</a>')
         html.append('</div>')
 
+    html.append("""
+    <script>
+    (function () {
+      var box = document.getElementById('searchBox');
+      if (!box) return;
+      var cards = Array.prototype.slice.call(document.querySelectorAll('.subject-card'));
+      var noResults = document.getElementById('noResults');
+      box.addEventListener('input', function () {
+        var q = box.value.trim().toLowerCase();
+        var anyVisible = false;
+        cards.forEach(function (card) {
+          var links = Array.prototype.slice.call(card.querySelectorAll('.lecture-link'));
+          var heading = (card.querySelector('h2') || {}).textContent || '';
+          var subjectMatch = heading.toLowerCase().indexOf(q) !== -1;
+          var visibleLinks = 0;
+          links.forEach(function (a) {
+            var show = subjectMatch || a.textContent.toLowerCase().indexOf(q) !== -1 || q === '';
+            a.style.display = show ? '' : 'none';
+            if (show) visibleLinks++;
+          });
+          var showCard = q === '' || subjectMatch || visibleLinks > 0;
+          card.style.display = showCard ? '' : 'none';
+          if (showCard) anyVisible = true;
+        });
+        if (noResults) noResults.style.display = anyVisible ? 'none' : 'block';
+      });
+    })();
+    </script>
+    """)
     html.append("</main></body></html>")
-    
+
     with open(os.path.join(NOTES_ROOT, "index.html"), 'w', encoding='utf-8') as f:
         f.write("\n".join(html))
 

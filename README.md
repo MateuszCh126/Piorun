@@ -75,6 +75,7 @@ python piorun.py digest     # weekly autonomy digest
 | `/recall <phrase>` | semantic search across lecture notes, research and conversations |
 | `/find <phrase>` | full-text (FTS5) search across all lecture notes |
 | `/flashcards <subject>` | export Anki flashcards (TSV) from lecture control questions |
+| `/quiz <subject>` | self-quiz from lecture control questions, LLM-graded |
 | `/resume`, `/restart`, `/tasks`, `/help`, `/exit` | sessions, tasks, help |
 
 ## Vector memory (recall)

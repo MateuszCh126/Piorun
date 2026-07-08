@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-07 — Sprint E: szlif (roadmap 2.5, 4.5, 5.2, 6.1, 6.3, 6.4)
+
+### Dodane
+- **Profile backendu LLM** (6.3): `PIORUN_LLM_PROFILE=llamacpp|lmstudio|ollama`
+  ustawia domyślny `base_url` (jawny `PIORUN_LLM_BASE_URL` ma pierwszeństwo);
+  `doctor` pokazuje aktywny profil.
+- **Budżet kontekstu per zadanie** (6.4): notatki akademickie dostają większe
+  okno (`PIORUN_CONTEXT_MAX_TOKENS_NOTES=20000`) niż zwykła rozmowa (12000).
+- **Pętla zwrotna plannera** (2.5): planner autonomii widzi ostatnie odrzucone
+  propozycje z powodami i unika podobnych.
+- **Quiz** (4.5, `tools/quiz.py`): `/quiz <przedmiot>` odpytuje z pytań
+  kontrolnych, ocenia odpowiedzi przez LLM, wskazuje słabe obszary. Rdzeń
+  (wybór pytań, parsowanie oceny, pętla) testowalny bez LLM.
+- **Ewaluacja notatek** (6.1, `tools/notes_eval.py`): deterministyczny scorer
+  wg rubryki (nagłówek/pojęcia/pytania/podsumowanie) — mierzenie regresji
+  po zmianie promptu zamiast wiary na słowo.
+- **Wyszukiwarka w dashboardzie** (5.2): pole szukania filtruje wykłady po
+  przedmiocie/dacie — czysto po stronie klienta (statyczny HTML, zero serwera).
+
+### Zweryfikowane
+- 9 nowych testów; 99 testów łącznie.
+
 ## 2026-07-07 — Sprint D: baza wiedzy (roadmap 4.1–4.3)
 
 ### Dodane

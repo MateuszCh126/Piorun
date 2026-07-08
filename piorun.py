@@ -191,7 +191,7 @@ class PiorunCompleter(Completer):
             commands = [
                 '/help', '/clear', '/exit', '/tasks', '/schedule',
                 '/lecture', '/stop', '/process', '/notes', '/resume', '/restart', '/study', '/autonomy',
-                '/recall', '/find', '/flashcards'
+                '/recall', '/find', '/flashcards', '/quiz'
             ]
             for cmd in commands:
                 if cmd.startswith(text):
@@ -278,6 +278,7 @@ def piorun_cli():
                     print("[WYKLADY] /lecture <przedmiot> | /stop | /process [przedmiot] | /notes")
                     print("[PAMIEC] /recall <fraza> - semantyczne szukanie w notatkach i rozmowach")
                     print("[WIEDZA] /find <fraza> - pelnotekstowe szukanie w notatkach | /flashcards <przedmiot>")
+                    print("[NAUKA] /quiz <przedmiot> - odpytywanie z pytan kontrolnych z ocena")
                     continue
                 elif cmd == "/restart":
                     session_id = str(int(time.time()))
@@ -517,6 +518,17 @@ def piorun_cli():
                             print(f"\n[!] Brak pytan kontrolnych w notatkach dla: {subject}")
                     except Exception as e:
                         print(f"\n[!] Blad fiszek: {e}")
+                    continue
+                elif cmd == "/quiz":
+                    subject = user_input.strip()[len("/quiz"):].strip()
+                    if not subject:
+                        print("\n[!] Uzycie: /quiz <przedmiot>")
+                        continue
+                    try:
+                        import tools.quiz as quiz
+                        quiz.run_quiz(subject, n=5)
+                    except Exception as e:
+                        print(f"\n[!] Blad quizu: {e}")
                     continue
                 elif cmd == "/autonomy":
                     import core.ops_runtime as ops

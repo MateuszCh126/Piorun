@@ -45,12 +45,14 @@ class Settings:
     gcal_credentials_path: Path
     attachments_dir: Path
     llama_base_url: str
+    llm_profile: str
     llm_health_timeout_seconds: int
     ops_api_host: str
     ops_api_port: int
     model_name: str
     allowed_root: Path
     context_max_tokens: int
+    context_max_tokens_notes: int
     context_keep_recent_tokens: int
     summary_refresh_every_messages: int
     summary_recent_limit: int
@@ -143,12 +145,21 @@ def _build_settings() -> Settings:
     attachments_dir = _path_from_env("PIORUN_ATTACHMENTS_DIR", workdir)
     allowed_root = _path_from_env("PIORUN_ALLOWED_ROOT", workdir)
 
-    llama_base_url = os.environ.get("PIORUN_LLM_BASE_URL", "http://localhost:8080/v1")
+    # Profile backendu LLM (preset base_url); jawny PIORUN_LLM_BASE_URL ma pierwszenstwo.
+    llm_profiles = {
+        "llamacpp": "http://localhost:8080/v1",
+        "lmstudio": "http://localhost:1234/v1",
+        "ollama": "http://localhost:11434/v1",
+    }
+    llm_profile = os.environ.get("PIORUN_LLM_PROFILE", "llamacpp").strip().lower()
+    _profile_base = llm_profiles.get(llm_profile, llm_profiles["llamacpp"])
+    llama_base_url = os.environ.get("PIORUN_LLM_BASE_URL", _profile_base)
     llm_health_timeout_seconds = _int_from_env("PIORUN_LLM_HEALTH_TIMEOUT_SECONDS", 3)
     ops_api_host = os.environ.get("PIORUN_OPS_API_HOST", "127.0.0.1")
     ops_api_port = _int_from_env("PIORUN_OPS_API_PORT", 8787)
     model_name = os.environ.get("PIORUN_MODEL_NAME", "gemma-4-9b")
     context_max_tokens = _int_from_env("PIORUN_CONTEXT_MAX_TOKENS", 12000)
+    context_max_tokens_notes = _int_from_env("PIORUN_CONTEXT_MAX_TOKENS_NOTES", 20000)
     context_keep_recent_tokens = _int_from_env("PIORUN_CONTEXT_KEEP_RECENT_TOKENS", 5000)
     summary_refresh_every_messages = _int_from_env("PIORUN_SUMMARY_REFRESH_EVERY_MESSAGES", 8)
     summary_recent_limit = _int_from_env("PIORUN_SUMMARY_RECENT_LIMIT", 40)
@@ -194,12 +205,14 @@ def _build_settings() -> Settings:
         gcal_credentials_path=gcal_credentials_path,
         attachments_dir=attachments_dir,
         llama_base_url=llama_base_url,
+        llm_profile=llm_profile,
         llm_health_timeout_seconds=llm_health_timeout_seconds,
         ops_api_host=ops_api_host,
         ops_api_port=ops_api_port,
         model_name=model_name,
         allowed_root=allowed_root,
         context_max_tokens=context_max_tokens,
+        context_max_tokens_notes=context_max_tokens_notes,
         context_keep_recent_tokens=context_keep_recent_tokens,
         summary_refresh_every_messages=summary_refresh_every_messages,
         summary_recent_limit=summary_recent_limit,

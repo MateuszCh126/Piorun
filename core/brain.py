@@ -397,7 +397,9 @@ def manage_context_window(history, session_id=None, topic=""):
     if session_id:
         _maybe_refresh_session_summary(session_id, topic, force=False)
 
-    max_tokens = SETTINGS.context_max_tokens
+    # Budzet kontekstu per zadanie: notatki akademickie dostaja wieksze okno niz zwykla rozmowa.
+    is_notes = "notatki" in str(topic or "").lower() or str(session_id or "").startswith("academic")
+    max_tokens = SETTINGS.context_max_tokens_notes if is_notes else SETTINGS.context_max_tokens
     keep_recent_tokens = SETTINGS.context_keep_recent_tokens
     current_tokens = _estimate_history_tokens(history)
     if current_tokens <= max_tokens:

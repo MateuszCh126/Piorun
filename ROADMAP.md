@@ -119,7 +119,7 @@ na pytania i przygotowuje do egzaminów.
 | 4.2 | Fiszki z notatek: sekcje „Pytania kontrolne" już są generowane — parser zbiera je per przedmiot i eksportuje do formatu Anki (apkg przez `genanki` albo prosty TSV) + `/flashcards <przedmiot>` | nowy `tools/flashcards.py` | M | średnie: jakość pytań zależy od modelu — zacząć od TSV |
 | 4.3 | Powiązanie notatek z terminami: `/study` pokazuje przy terminie liczbę notatek z przedmiotu i link do najnowszej | `tools/study_deadlines.py`, `piorun.py` | S | niskie |
 | 4.4 | Pamięć wektorowa w rozmowie: narzędzie `recall` dla modelu — **pełny projekt: `docs/vector-memory-design.md`** (4 kolekcje, spec API, algorytmy chunkowania, hybryda z FTS, kalibracja, macierz testów, tryby awarii, ADR-y, wdrożenie w 12 krokach z rollbackiem) | wg projektu | L | zaadresowane w projekcie |
-| 4.5 | Quiz przed kolokwium: `/quiz <przedmiot>` — model odpytuje z notatek (pętla pytanie→odpowiedź→ocena), wynik zapisywany, słabe obszary trafiają do fiszek | `piorun.py` + nowy `tools/quiz.py` | L | średnie: wymaga działającego LLM, projekt promptów |
+| 4.5 | ✅ ZREALIZOWANE (2026-07-07): `/quiz <przedmiot>` (`tools/quiz.py`) — pytania z notatek, ocena przez LLM, słabe obszary; rdzeń testowalny bez LLM | `piorun.py`, `tools/quiz.py` | L | — |
 
 **Kryterium ukończenia:** `/find` znajduje frazę z dowolnego wykładu w <1 s;
 przed kolokwium da się wygenerować talię fiszek z całego przedmiotu jedną komendą.
@@ -142,12 +142,15 @@ i rozstrzygnąć z przeglądarki; notatki mają wyszukiwarkę.
 
 **Cel:** mierzyć i poprawiać to, co model generuje, zamiast wierzyć na słowo.
 
+> **Status (2026-07-07): 6.1, 6.3, 6.4 ZREALIZOWANE.** 6.2 (streaming) —
+> wymaga żywego serwera LLM do weryfikacji, świadomie odłożone (patrz niżej).
+
 | # | Zadanie | Rozmiar | Uwagi |
 |---|---------|---------|-------|
-| 6.1 | Zestaw ewaluacyjny notatek: 3 transkrypty-fixture + rubryka (kompletność pojęć, poprawność, format) — uruchamiany ręcznie po zmianie promptu | M | pierwszy krok do świadomego strojenia promptów |
-| 6.2 | Strumieniowanie odpowiedzi w CLI (`stream=True`) — odpowiedź pojawia się od razu, nie po 20 s | M | duża poprawa odczuwalnej szybkości |
-| 6.3 | Wymienny backend LLM: profil konfiguracyjny (llama.cpp / LM Studio / dowolny endpoint OpenAI-compatible) + `doctor` pokazuje aktywny profil | S | `base_url` już jest w env — brakuje presetów i dokumentacji |
-| 6.4 | Budżet kontekstu per zadanie: notatki dostają większe okno niż small-talk (dziś jeden limit globalny) | S | konfig w `core/config.py` |
+| 6.1 | ✅ ZREALIZOWANE: `tools/notes_eval.py` — deterministyczny scorer wg rubryki | M | — |
+| 6.2 | Strumieniowanie odpowiedzi w CLI (`stream=True`) | M | ODŁOŻONE: poprawne streamowanie z tool-callami wymaga żywego serwera do weryfikacji; nie chcę oddawać niesprawdzonego kodu |
+| 6.3 | ✅ ZREALIZOWANE: profile `PIORUN_LLM_PROFILE` (llamacpp/lmstudio/ollama) + `doctor` | S | — |
+| 6.4 | ✅ ZREALIZOWANE: `PIORUN_CONTEXT_MAX_TOKENS_NOTES` — notatki dostają większe okno | S | — |
 
 ## 10. Kolejność wykonania (sprinty)
 

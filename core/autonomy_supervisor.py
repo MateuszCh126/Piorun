@@ -480,6 +480,29 @@ def _study_deadlines_prompt_block(limit: int = 8) -> str:
     return "\n".join(lines)
 
 
+def _recent_rejections_prompt_block(limit: int = 5) -> str:
+    """Ostatnie odrzucone propozycje z powodami - planner ma ich unikac (petla zwrotna)."""
+    if not DECISIONS_PATH.exists():
+        return "- Brak."
+    rejects = []
+    try:
+        with open(DECISIONS_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    e = json.loads(line)
+                except Exception:
+                    continue
+                if e.get("kind") == "queue_decision" and str(e.get("decision", "")) == "REJECTED":
+                    rejects.append(_sanitize_text(e.get("reason", ""), 120) or "(bez powodu)")
+    except Exception:
+        return "- Brak."
+    rejects = rejects[-int(limit):]
+    return "\n".join(f"- {r}" for r in rejects) if rejects else "- Brak."
+
+
 def _build_context(state: dict, queue_items: list[dict]):
     profile = ""
     profile_path = SETTINGS.workspace_root / "user_profile.md"
@@ -501,6 +524,7 @@ def _build_context(state: dict, queue_items: list[dict]):
         "recent_autonomy_actions": _recent_actions_prompt_block(state, limit=12),
         "pending_queue_topics": _pending_queue_prompt_block(queue_items, limit=12),
         "study_deadlines": _study_deadlines_prompt_block(limit=8),
+        "recent_rejections": _recent_rejections_prompt_block(limit=5),
     }
 
 
@@ -565,6 +589,9 @@ Kontekst profilu (skrot):
 
 Nadchodzace terminy studenckie (7 dni):
 {context['study_deadlines']}
+
+Czego wlasciciel NIE chce (ostatnio odrzucone - nie proponuj podobnych):
+{context['recent_rejections']}
 
 Ostatnie podsumowania:
 {context['recent_summaries']}
