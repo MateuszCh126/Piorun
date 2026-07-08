@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-07 — Sprint B: OCR, doctor, ujednolicone CLI (roadmap 3.1–3.2)
+
+### Dodane
+- **Ujednolicone CLI**: `python piorun.py [chat|doctor|digest|autonomy ...]`;
+  bez argumentów = czat (tryb `-c` i launchery `.bat` bez zmian); `autonomy`
+  deleguje do `scripts/autonomy_ops.py`.
+- **`python piorun.py doctor`** (`core/doctor.py`): health-check całego stacku —
+  endpoint LLM, model Whisper na dysku, wyszukiwarka, embeddingi, poświadczenia
+  e-mail, wolne miejsce, urządzenie loopback, zapisywalność baz. Żaden check nie
+  rzuca wyjątku; exit code = 0/1. Zweryfikowany na żywo (8/9, LLM offline).
+
 ## 2026-07-07 — Academic Mode PRO, sprint A (roadmap 1.1–1.3, 1.5–1.6)
 
 ### Dodane

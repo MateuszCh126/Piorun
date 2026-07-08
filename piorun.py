@@ -559,5 +559,40 @@ def piorun_cli():
             else:
                 print(f"\n[BŁĄD KRYTYCZNY]: {str(e)}")
 
-if __name__ == "__main__":
+def _dispatch(argv):
+    """Ujednolicone CLI: piorun.py [chat|doctor|digest|autonomy ...].
+
+    Bez argumentow (albo 'chat') = interaktywny czat. Zgodne z istniejacymi
+    launcherami .bat i trybem jednorazowym '-c'.
+    """
+    cmd = argv[0].lower() if argv else "chat"
+
+    if cmd == "doctor":
+        import core.doctor as doctor
+        raise SystemExit(0 if doctor.print_report() else 1)
+
+    if cmd == "digest":
+        try:
+            import tools.weekly_digest as wd
+            raise SystemExit(wd.main(argv[1:]))
+        except ImportError:
+            print("[!] Digest jeszcze niedostepny w tej wersji.")
+            raise SystemExit(1)
+
+    if cmd == "autonomy":
+        scripts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        sys.argv = ["autonomy_ops"] + argv[1:]
+        import autonomy_ops
+        autonomy_ops.main()
+        return
+
+    # 'chat' albo dowolne inne (np. -c "...") -> interaktywny/one-shot czat.
+    if cmd == "chat":
+        sys.argv = [sys.argv[0]] + argv[1:]
     piorun_cli()
+
+
+if __name__ == "__main__":
+    _dispatch(sys.argv[1:])

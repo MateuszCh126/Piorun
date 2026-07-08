@@ -54,6 +54,15 @@ copy .env.example .env   # then adjust the values
 Runtime behaviour is driven by environment variables — see [`.env.example`](.env.example) for the full
 list (autonomy limits, lecture screenshot interval, audio channels, etc.). Copy it to `.env` and adjust.
 
+## Entry points
+
+```
+python piorun.py            # interactive chat (default)
+python piorun.py doctor     # health-check: LLM, Whisper model, search, embeddings, DBs, loopback…
+python piorun.py autonomy status|queue|tick|approve|reject   # autonomy operator CLI
+python piorun.py digest     # weekly autonomy digest
+```
+
 ## CLI commands (piorun.py)
 
 | Command | What it does |
