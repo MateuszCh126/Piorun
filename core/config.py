@@ -49,6 +49,7 @@ class Settings:
     llm_health_timeout_seconds: int
     ops_api_host: str
     ops_api_port: int
+    ops_api_token: str
     model_name: str
     allowed_root: Path
     context_max_tokens: int
@@ -157,6 +158,7 @@ def _build_settings() -> Settings:
     llm_health_timeout_seconds = _int_from_env("PIORUN_LLM_HEALTH_TIMEOUT_SECONDS", 3)
     ops_api_host = os.environ.get("PIORUN_OPS_API_HOST", "127.0.0.1")
     ops_api_port = _int_from_env("PIORUN_OPS_API_PORT", 8787)
+    ops_api_token = os.environ.get("PIORUN_OPS_API_TOKEN", "").strip()
     model_name = os.environ.get("PIORUN_MODEL_NAME", "gemma-4-9b")
     context_max_tokens = _int_from_env("PIORUN_CONTEXT_MAX_TOKENS", 12000)
     context_max_tokens_notes = _int_from_env("PIORUN_CONTEXT_MAX_TOKENS_NOTES", 20000)
@@ -209,6 +211,7 @@ def _build_settings() -> Settings:
         llm_health_timeout_seconds=llm_health_timeout_seconds,
         ops_api_host=ops_api_host,
         ops_api_port=ops_api_port,
+        ops_api_token=ops_api_token,
         model_name=model_name,
         allowed_root=allowed_root,
         context_max_tokens=context_max_tokens,

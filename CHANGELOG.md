@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-08 — Kanał mobilny (roadmap 5.3)
+
+Dostęp do panelu autonomii z telefonu — local-first, bez publicznej ekspozycji.
+
+### Dodane
+- **Token auth panelu** (`PIORUN_OPS_API_TOKEN`, `tools/ops_api_server.py`):
+  gdy ustawiony, endpointy danych i akcji wymagają tokenu (nagłówek
+  `X-Piorun-Token` lub `?token=`, porównanie stałego czasu); pusta powłoka
+  panelu publiczna i sama prosi o token. Pusty token = brak auth (tylko
+  localhost). Ostrzeżenie startowe przy nasłuchu poza localhostem bez tokenu.
+- **Panel responsywny na telefon**: duże przyciski dotykowe, flex-owy układ
+  statystyk, media query < 600 px; token trzymany w localStorage, wpisywany raz
+  przez `?token=` albo prompt.
+- **`docs/MOBILE.md`**: instrukcja dostępu przez Tailscale (prywatny VPN),
+  konfiguracja hosta/tokenu/firewalla, powiadomienia mailem (istniejące
+  przypomnienia + digest). Świadome ograniczenie: brak pełnego czatu z telefonu
+  (tylko podgląd + approve/reject/tick), zero publicznej ekspozycji.
+
+### Zweryfikowane
+- Token auth na żywym serwerze HTTP: powłoka publiczna, dane bez tokenu → 401,
+  z poprawnym tokenem (nagłówek i query) → 200, zły token → 401. 102 testy łącznie.
+
 ## 2026-07-07 — Panel operacyjny www (roadmap 5.1)
 
 ### Dodane

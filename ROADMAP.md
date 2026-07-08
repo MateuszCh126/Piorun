@@ -137,7 +137,7 @@ przepisywania rdzenia.
 |---|---------|---------|-------|
 | 5.1 | ✅ ZREALIZOWANE (2026-07-07): panel www w `ops_api_server.py` (stdlib http.server, zero zależności, localhost-only) — kolejka approve/reject, tick, stan; zweryfikowany HTTP-em | L | bez FastAPI — rozszerzony istniejący serwer |
 | 5.2 | ✅ ZREALIZOWANE (2026-07-07): wyszukiwarka w dashboardzie notatek (filtr po przedmiocie/dacie, client-side) | M | — |
-| 5.3 | Kanał mobilny (opcjonalny, do decyzji) | L | ODŁOŻONE: wejście z zewnątrz = nowa powierzchnia ataku; wymaga decyzji właściciela |
+| 5.3 | ✅ ZREALIZOWANE (2026-07-08): panel z telefonu przez Tailscale (prywatny VPN, zero publicznej ekspozycji), token auth (`PIORUN_OPS_API_TOKEN`), responsywny panel, powiadomienia mailem; `docs/MOBILE.md` | `ops_api_server.py`, `docs/MOBILE.md` | L | decyzja właściciela: scope „powiadomienia + kolejka", kanał Tailscale |
 
 **Kryterium ukończenia (5.1–5.2):** kolejkę autonomii da się przejrzeć
 i rozstrzygnąć z przeglądarki; notatki mają wyszukiwarkę.

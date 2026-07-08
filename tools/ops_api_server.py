@@ -1,3 +1,4 @@
+import hmac
 import json
 import os
 import sys
@@ -23,46 +24,66 @@ def _panel_html():
 <title>Piorun ⚡ Panel</title>
 <style>
 :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--accent:#f0c040;}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;margin:0;padding:24px;line-height:1.5;}
-h1{color:var(--accent);}h2{color:#fff;border-bottom:1px solid var(--border);padding-bottom:6px;margin-top:32px;}
+*{box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;margin:0;padding:20px;line-height:1.5;}
+h1{color:var(--accent);font-size:1.5em;}h2{color:#fff;border-bottom:1px solid var(--border);padding-bottom:6px;margin-top:28px;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;}
-.stat{display:inline-block;margin-right:24px;}
-.stat b{color:var(--accent);font-size:1.4em;display:block;}
-button{background:var(--border);color:var(--text);border:0;border-radius:6px;padding:8px 14px;margin-right:6px;cursor:pointer;font-size:0.9em;}
-button:hover{background:#2d333b;}
+.stats{display:flex;flex-wrap:wrap;gap:20px;}
+.stat b{color:var(--accent);font-size:1.5em;display:block;}
+button{background:var(--border);color:var(--text);border:0;border-radius:8px;padding:12px 18px;margin:4px 6px 4px 0;cursor:pointer;font-size:1em;min-height:44px;}
+button:active{opacity:0.7;}
 button.approve{background:#238636;color:#fff;}button.reject{background:#8b2c2c;color:#fff;}button.primary{background:var(--accent);color:#000;}
 .muted{opacity:0.6;font-size:0.85em;}
+#tokenBar{margin-bottom:16px;}
+#tokenBar input{padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1em;}
+@media(max-width:600px){body{padding:14px;}button{width:100%;margin:6px 0;}.card button{width:auto;}}
 </style></head><body>
 <h1>Piorun ⚡ Panel operacyjny</h1>
+<div id="tokenBar"></div>
 <div id="state" class="card">Ładowanie…</div>
 <button class="primary" onclick="tick()">Uruchom tick teraz</button>
 <button onclick="refresh()">Odśwież</button>
 <h2>Kolejka akceptacji</h2>
 <div id="queue">Ładowanie…</div>
 <script>
-async function jget(u){const r=await fetch(u);return r.json();}
-async function jpost(u,b){const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});return r.json();}
-async function refresh(){
-  const s=await jget('/autonomy/state');
-  document.getElementById('state').innerHTML=
-    `<span class="stat"><b>${s.enabled}</b>autonomia</span>`+
-    `<span class="stat"><b>${s.queue_size}</b>w kolejce</span>`+
-    `<span class="stat"><b>${s.ticks_count}</b>ticki</span>`+
-    `<span class="stat"><b>${s.autoexec_count_this_hour}</b>akcje/h</span>`+
-    `<div class="muted">Ostatni tick: ${s.last_tick_at||'—'}</div>`;
-  const q=(await jget('/autonomy/queue?limit=50')).items||[];
-  if(!q.length){document.getElementById('queue').innerHTML='<div class="muted">Kolejka pusta.</div>';return;}
-  document.getElementById('queue').innerHTML=q.map(function(it){
-    const a=it.action||{};
-    return `<div class="card"><b>${(it.title||'').replace(/</g,'&lt;')}</b>`+
-      `<div class="muted">akcja=${a.type||''} | conf=${it.confidence} | blokada=${it.reason_blocked||''}</div>`+
-      `<button class="approve" onclick="decide('${it.id}','approve')">Zatwierdź</button>`+
-      `<button class="reject" onclick="decide('${it.id}','reject')">Odrzuć</button></div>`;
-  }).join('');
+function getToken(){
+  var u=new URLSearchParams(location.search).get('token');
+  if(u){localStorage.setItem('piorun_token',u);history.replaceState({},'',location.pathname);return u;}
+  return localStorage.getItem('piorun_token')||'';
 }
-async function decide(id,d){await jpost('/autonomy/decision',{id:id,decision:d});refresh();}
-async function tick(){await jpost('/autonomy/tick',{});refresh();}
-refresh();
+function setToken(t){localStorage.setItem('piorun_token',t||'');}
+function hdr(){var t=localStorage.getItem('piorun_token')||'';return t?{'X-Piorun-Token':t}:{};}
+async function jget(u){const r=await fetch(u,{headers:hdr()});if(r.status===401){onUnauthorized();throw new Error('401');}return r.json();}
+async function jpost(u,b){const r=await fetch(u,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},hdr()),body:JSON.stringify(b||{})});if(r.status===401){onUnauthorized();throw new Error('401');}return r.json();}
+function onUnauthorized(){
+  document.getElementById('tokenBar').innerHTML=
+    '<div class="muted">Wymagany token dostępu:</div>'+
+    '<input id="tk" type="password" placeholder="token…"> <button onclick="saveToken()">Zapisz</button>';
+}
+function saveToken(){setToken(document.getElementById('tk').value.trim());document.getElementById('tokenBar').innerHTML='';refresh();}
+async function refresh(){
+  try{
+    const s=await jget('/autonomy/state');
+    document.getElementById('state').innerHTML='<div class="stats">'+
+      `<span class="stat"><b>${s.enabled}</b>autonomia</span>`+
+      `<span class="stat"><b>${s.queue_size}</b>w kolejce</span>`+
+      `<span class="stat"><b>${s.ticks_count}</b>ticki</span>`+
+      `<span class="stat"><b>${s.autoexec_count_this_hour}</b>akcje/h</span></div>`+
+      `<div class="muted">Ostatni tick: ${s.last_tick_at||'—'}</div>`;
+    const q=(await jget('/autonomy/queue?limit=50')).items||[];
+    if(!q.length){document.getElementById('queue').innerHTML='<div class="muted">Kolejka pusta.</div>';return;}
+    document.getElementById('queue').innerHTML=q.map(function(it){
+      const a=it.action||{};
+      return `<div class="card"><b>${(it.title||'').replace(/</g,'&lt;')}</b>`+
+        `<div class="muted">akcja=${a.type||''} | conf=${it.confidence} | blokada=${it.reason_blocked||''}</div>`+
+        `<button class="approve" onclick="decide('${it.id}','approve')">Zatwierdź</button>`+
+        `<button class="reject" onclick="decide('${it.id}','reject')">Odrzuć</button></div>`;
+    }).join('');
+  }catch(e){/* 401 obsluzone w onUnauthorized */}
+}
+async function decide(id,d){try{await jpost('/autonomy/decision',{id:id,decision:d});refresh();}catch(e){}}
+async function tick(){try{await jpost('/autonomy/tick',{});refresh();}catch(e){}}
+getToken();refresh();
 </script></body></html>"""
 
 
@@ -100,6 +121,18 @@ class OpsHandler(BaseHTTPRequestHandler):
         except OSError:
             return False
 
+    def _authorized(self):
+        """Bramka uwierzytelnienia. Gdy PIORUN_OPS_API_TOKEN pusty -> brak auth
+        (zgodnosc z czysto-lokalnym uzyciem). Gdy ustawiony -> wymagany token
+        w naglowku X-Piorun-Token albo w query ?token= (porownanie stalego czasu)."""
+        token = SETTINGS.ops_api_token
+        if not token:
+            return True
+        provided = self.headers.get("X-Piorun-Token", "")
+        if not provided:
+            provided = (parse_qs(urlparse(self.path).query).get("token") or [""])[0]
+        return hmac.compare_digest(str(provided), str(token))
+
     def _read_json_body(self):
         length = _to_int(self.headers.get("Content-Length"), 0)
         if length <= 0:
@@ -118,8 +151,11 @@ class OpsHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         try:
+            # Powloka panelu jest publiczna (sama poprosi o token); dane wymagaja tokenu.
             if path in ("/", "/panel"):
                 return self._send_html(200, _panel_html())
+            if not self._authorized():
+                return self._send_json(401, {"error": "unauthorized"})
             if path == "/health":
                 return self._send_json(200, ops.get_runtime_health())
             if path == "/status":
@@ -149,6 +185,8 @@ class OpsHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         try:
+            if not self._authorized():
+                return self._send_json(401, {"error": "unauthorized"})
             if path == "/backup":
                 payload = self._read_json_body()
                 include_workdir = bool(payload.get("include_workdir", True))
@@ -183,6 +221,18 @@ class OpsHandler(BaseHTTPRequestHandler):
 def run_ops_api_server(host=None, port=None):
     host = host or SETTINGS.ops_api_host
     port = _to_int(port or SETTINGS.ops_api_port, SETTINGS.ops_api_port)
+
+    is_loopback = host in ("127.0.0.1", "localhost", "::1")
+    if not is_loopback and not SETTINGS.ops_api_token:
+        print(
+            "[!] OSTRZEZENIE: serwer nasluchuje poza localhostem "
+            f"({host}) BEZ tokenu. Ustaw PIORUN_OPS_API_TOKEN, "
+            "zanim wystawisz panel na siec (Tailscale) - inaczej kazdy w sieci "
+            "moze zatwierdzac akcje autonomii."
+        )
+    if SETTINGS.ops_api_token:
+        print("[*] Auth: token wymagany (PIORUN_OPS_API_TOKEN ustawiony).")
+
     server = ThreadingHTTPServer((host, port), OpsHandler)
     print(f"[*] Ops API listening on http://{host}:{port}")
     print(
