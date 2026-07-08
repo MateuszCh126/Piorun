@@ -161,16 +161,18 @@ i rozstrzygnąć z przeglądarki; notatki mają wyszukiwarkę.
 Zależności: 1.1→1.6 (test używa refaktoru), 4.1→4.2/5.2 (indeks przed fiszkami
 i wyszukiwarką), 2.2→2.5/3.5 (digest przed pętlą zwrotną i backupem), 3.1→3.2.
 
-- **Sprint A — „Wykład bez rąk"** (najbliższy): 1.1, 1.2, 1.3, 1.5, 1.6 + 3.3
-  (porządek repo przy okazji). Efekt widoczny na pierwszym nagraniu.
-- **Sprint B — „OCR i doktor"**: 1.4 (weryfikacja na realnej sesji z repo),
-  3.1, 3.2, 1.7. Efekt: notatki widzą slajdy, system sam się diagnozuje.
-- **Sprint C — „Autonomia z raportem"**: 2.1, 2.2, 2.3, 2.4, 3.4, 3.5.
-  Efekt: pierwszy tygodniowy digest + przypomnienia o terminach.
-- **Sprint D — „Baza wiedzy"**: 4.1, 4.3, 4.2. Efekt: `/find` i fiszki.
-- **Sprint E — „Szlif"**: 6.2, 6.3, 2.5, 5.2. Potem decyzje: 4.4/4.5/5.1/5.3.
+> **WSZYSTKIE SPRINTY ZREALIZOWANE (2026-07-07).** Etapy 1–5 kompletne,
+> Etap 6 poza streamingiem (6.2). Wyjątki świadome: **6.2** (streaming —
+> wymaga żywego serwera LLM do weryfikacji) i **5.3** (mobilny — decyzja
+> właściciela, powierzchnia ataku). 101 testów pytest zielonych.
 
-Każdy sprint kończy się: pytest zielony → smoke-test na żywo → commit(y) na
+- **Sprint A — „Wykład bez rąk"** ✅: 1.1, 1.2, 1.3, 1.5, 1.6 + 3.3.
+- **Sprint B — „OCR i doktor"** ✅: 1.4, 1.7, 3.1, 3.2.
+- **Sprint C — „Autonomia z raportem"** ✅: 2.1, 2.2, 2.3, 2.4, 3.4, 3.5.
+- **Sprint D — „Baza wiedzy"** ✅: 4.1, 4.2, 4.3.
+- **Sprint E — „Szlif"** ✅: 2.5, 4.5, 5.1, 5.2, 6.1, 6.3, 6.4.
+
+Każdy sprint kończył się: pytest zielony → smoke-test na żywo → commit(y) na
 main → push po Twoim OK.
 
 ## 11. Metryki sukcesu (globalne)
