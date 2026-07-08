@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-07 — Academic Mode PRO, sprint A (roadmap 1.1–1.3, 1.5–1.6)
+
+### Dodane
+- **Auto-process po `/stop`**: po zakończeniu nagrania Piorun proponuje
+  natychmiastowe przetworzenie (`[T/n]`, domyślnie TAK) — od nagrania do
+  otwartej notatki HTML bez ręcznej komendy. Wspólna funkcja `process_session()`
+  używana przez `/stop` i `/process` (koniec zduplikowanej logiki).
+- **Detekcja ciszy**: nagrywarka liczy RMS ramek i ostrzega po 60 s ciszy
+  (env `PIORUN_LECTURE_SILENCE_WARN_SECONDS`) — wychwytuje wyciszony Teams albo
+  zły kanał audio W TRAKCIE wykładu, nie po nim; statystyka max ciszy
+  w podsumowaniu (`tools/lecture_recorder.py`).
+- **Fallback urządzenia loopback**: gdy nie ma loopbacku pasującego do
+  domyślnego wyjścia, nagrywarka bierze pierwszy dostępny (z ostrzeżeniem)
+  zamiast odmawiać startu.
+- **Eksport DOCX** (`tools/docx_export.py`, za flagą `PIORUN_LECTURE_EXPORT_DOCX`):
+  notatki jako dokument Word z nagłówkami, listami, pogrubieniami i osadzonymi
+  slajdami — obok wersji HTML.
+- **Test integracyjny pipeline'u** (`tests/test_lecture_pipeline.py`):
+  transcript → notatki → HTML → DOCX z zamockowanym LLM (bez Whispera, modelu
+  i sieci); plus testy jednostkowe RMS, detekcji ciszy i wyboru urządzenia.
+  Łącznie 61 testów pytest.
+
 ## 2026-07-07 — Pamięć wektorowa (roadmap 4.4)
 
 ### Dodane

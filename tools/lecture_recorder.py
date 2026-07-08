@@ -7,6 +7,7 @@ import wave
 from datetime import datetime
 
 import mss
+import numpy as np
 import pyaudiowpatch as pyaudio
 from PIL import Image
 
@@ -27,6 +28,18 @@ SCREENSHOT_HASH_DOWNSCALE = (320, 180)
 CHANNELS = int(os.environ.get("PIORUN_LECTURE_AUDIO_CHANNELS", "2"))
 CHUNK_SIZE = 1024
 FORMAT = pyaudio.paInt16
+SILENCE_WARN_SECONDS = int(os.environ.get("PIORUN_LECTURE_SILENCE_WARN_SECONDS", "60"))
+SILENCE_RMS_THRESHOLD = float(os.environ.get("PIORUN_LECTURE_SILENCE_RMS_THRESHOLD", "60"))
+
+
+def compute_rms(chunk_bytes: bytes) -> float:
+    """RMS ramki int16 (0 = idealna cisza). Czysta funkcja - latwa do testow."""
+    if not chunk_bytes:
+        return 0.0
+    samples = np.frombuffer(chunk_bytes, dtype=np.int16)
+    if samples.size == 0:
+        return 0.0
+    return float(np.sqrt(np.mean(np.square(samples.astype(np.float64)))))
 
 
 class LectureRecorder:
@@ -49,6 +62,9 @@ class LectureRecorder:
         self.wave_writer = None
         self.frames_written = 0
         self.audio_errors = 0
+        self.silent_seconds = 0.0
+        self.max_silence_seconds = 0.0
+        self.silence_warned = False
 
     def get_loopback_device(self, p):
         wasapi_info = None
@@ -62,11 +78,23 @@ class LectureRecorder:
             return None
 
         default_output = p.get_device_info_by_index(wasapi_info["defaultOutputDevice"])
+        loopbacks = []
         for i in range(p.get_device_count()):
             dev = p.get_device_info_by_index(i)
             if dev["hostApi"] == wasapi_info["index"] and dev.get("isLoopbackDevice"):
-                if default_output["name"] in dev["name"]:
-                    return dev
+                loopbacks.append(dev)
+
+        # Preferuj loopback domyslnego wyjscia audio.
+        for dev in loopbacks:
+            if default_output["name"] in dev["name"]:
+                return dev
+        # Fallback: pierwszy dostepny loopback - lepszy niz odmowa startu.
+        if loopbacks:
+            print(
+                f"[!] Uwaga: brak loopbacku dla domyslnego wyjscia '{default_output['name']}'; "
+                f"uzywam '{loopbacks[0]['name']}'."
+            )
+            return loopbacks[0]
         return None
 
     def _open_stream(self, dev):
@@ -175,9 +203,25 @@ class LectureRecorder:
         else:
             print(
                 f"[*] Audio: ~{duration:.0f}s zapisane ({self.frames_written} fragmentow, "
-                f"bledy odczytu: {self.audio_errors})."
+                f"bledy odczytu: {self.audio_errors}, max cisza: ~{int(self.max_silence_seconds)}s)."
             )
         return self.session_dir
+
+    def _track_silence(self, data: bytes):
+        """Zlicza ciag ciszy; ostrzega raz, gdy przekroczy prog (zly device / wyciszony Teams)."""
+        chunk_seconds = CHUNK_SIZE / float(self.rate or 1)
+        if compute_rms(data) < SILENCE_RMS_THRESHOLD:
+            self.silent_seconds += chunk_seconds
+            self.max_silence_seconds = max(self.max_silence_seconds, self.silent_seconds)
+            if not self.silence_warned and self.silent_seconds >= SILENCE_WARN_SECONDS:
+                self.silence_warned = True
+                print(
+                    f"[!] UWAGA: cisza od ~{int(self.silent_seconds)}s. "
+                    "Sprawdz, czy dzwiek leci na domyslne wyjscie (Teams nie wyciszony?)."
+                )
+        else:
+            self.silent_seconds = 0.0
+            self.silence_warned = False
 
     def _record_audio(self):
         frames_since_flush = 0
@@ -188,6 +232,7 @@ class LectureRecorder:
                     self.wave_writer.writeframesraw(data)
                     self.frames_written += 1
                     frames_since_flush += 1
+                    self._track_silence(data)
                     # Okresowy flush: przy padzie procesu na dysku zostaje dotychczasowe audio.
                     if frames_since_flush >= 200:
                         frames_since_flush = 0

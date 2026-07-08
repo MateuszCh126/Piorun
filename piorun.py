@@ -116,6 +116,57 @@ def cleanup_lecture_artifacts(session_path):
                 pass
     return removed
 
+
+def _bool_env(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def process_session(session_path, cleanup=None):
+    """Przetwarza jedna sesje wykladu: transkrypcja (jesli trzeba) -> notatki -> HTML (+ opcjonalny DOCX).
+
+    Wspoldzielone przez /process (batch) i /stop (auto-process). Zwraca sciezke HTML.
+    Rzuca wyjatek przy bledzie - to caller decyduje, czy przerwac, czy isc dalej.
+    """
+    import tools.whisper_bridge as wb
+    import tools.note_generator as ng
+    import core.html_builder as hb
+
+    if cleanup is None:
+        cleanup = LECTURE_CLEANUP_AFTER_PROCESS
+
+    folder_name = os.path.basename(os.path.normpath(session_path))
+    parts_folder = folder_name.split("_", 2)
+    subject = parts_folder[2] if len(parts_folder) > 2 else folder_name
+
+    transcript_path = os.path.join(session_path, "transcript.json")
+    if os.path.exists(transcript_path):
+        print("  [1/3] Transkrypcja już istnieje - pomijam (resume).")
+    else:
+        print("  [1/3] Transkrypcja GPU (Whisper large-v3)...")
+        wb.transcribe_session(session_path)
+
+    print("  [2/3] Analiza Pioruna -> notatki...")
+    ng.generate_academic_notes(session_path, subject)
+
+    print("  [3/3] Generowanie HTML...")
+    html_path = hb.build_lecture_page(session_path, subject)
+
+    if _bool_env("PIORUN_LECTURE_EXPORT_DOCX", False):
+        try:
+            import tools.docx_export as dx
+            docx_path = dx.build_lecture_docx(session_path, subject)
+            if docx_path:
+                print(f"  [DOCX] {docx_path}")
+        except Exception as e:
+            print(f"  [!] Eksport DOCX nie powiódł się: {e}")
+
+    if cleanup:
+        removed = cleanup_lecture_artifacts(session_path)
+        if removed:
+            print(f"  [CLEANUP] Usunięto: {', '.join(removed)}")
+
+    return html_path
+
 # --- SCHEMATY NARZĘDZI ---
 
 tools_v4 = [
@@ -269,7 +320,25 @@ def piorun_cli():
                         path = rec.stop()
                         globals()['_active_recorder'] = None
                         print(f"\n[OK] Sesja zakończona i zapisana: {path}")
-                        print("[*] Aby wygenerować notatki użyj: /process [nazwa_przedmiotu]")
+                        # Auto-process: zaproponuj natychmiastowe przetworzenie (domyślnie TAK).
+                        answer = "n"
+                        try:
+                            answer = input("[?] Przetworzyć teraz (transkrypcja + notatki)? [T/n]: ").strip().lower()
+                        except Exception:
+                            answer = "n"
+                        if answer in ("", "t", "tak", "y", "yes"):
+                            try:
+                                print(f"[*] Przetwarzanie: {os.path.basename(path)}")
+                                html = process_session(path)
+                                if html:
+                                    import webbrowser
+                                    webbrowser.open(f"file:///{html}")
+                                    print(f"[OK] Gotowe: {html}")
+                            except Exception as e:
+                                print(f"[!] Przetwarzanie nie powiodło się: {e}")
+                                print("[*] Możesz spróbować później: /process [nazwa_przedmiotu]")
+                        else:
+                            print("[*] Aby wygenerować notatki później użyj: /process [nazwa_przedmiotu]")
                     else:
                         print("\n[!] Brak aktywnej sesji nagrywania.")
                     continue
@@ -277,11 +346,7 @@ def piorun_cli():
                     parts = user_input.strip().split(None, 1)
                     subject_filter = parts[1] if len(parts) > 1 else None
                     sessions_dir = str(SETTINGS.sessions_root)
-                    
-                    import tools.whisper_bridge as wb
-                    import tools.note_generator as ng
-                    import core.html_builder as hb
-                    
+
                     # Znajdź WSZYSTKIE sesje bez notatek (batch mode)
                     all_sessions = sorted(os.listdir(sessions_dir))
                     pending = []
@@ -295,49 +360,30 @@ def piorun_cli():
                         transcript_exists = os.path.exists(os.path.join(session_path, "transcript.json"))
                         if (audio_exists or transcript_exists) and not os.path.exists(notes_done):
                             pending.append(session_path)
-                    
+
                     if not pending:
                         if subject_filter:
                             print(f"\n[!] Brak nieprzetworonych sesji dla: {subject_filter}")
                         else:
                             print(f"\n[!] Brak nieprzetworonych sesji. Wszystko jest już gotowe!")
                         continue
-                    
+
                     print(f"\n[BATCH] Znaleziono {len(pending)} nieprzetworzone sesje:")
                     for p in pending:
                         print(f"  - {os.path.basename(p)}")
                     print()
-                    
+
                     last_html = None
                     done_count = 0
                     failed = []
                     for i, session_path in enumerate(pending):
-                        # Wyciągnij nazwę przedmiotu z nazwy folderu
-                        folder_name = os.path.basename(session_path)
-                        # Format: YYYY-MM-DD_HHMM_Przedmiot
-                        parts_folder = folder_name.split("_", 2)
-                        subject = parts_folder[2] if len(parts_folder) > 2 else folder_name
-
-                        print(f"[{i+1}/{len(pending)}] Procesowanie: {folder_name}")
+                        print(f"[{i+1}/{len(pending)}] Procesowanie: {os.path.basename(session_path)}")
                         try:
-                            transcript_path = os.path.join(session_path, "transcript.json")
-                            if os.path.exists(transcript_path):
-                                print(f"  [1/3] Transkrypcja już istnieje - pomijam (resume).")
-                            else:
-                                print(f"  [1/3] Transkrypcja GPU (Whisper large-v3)...")
-                                wb.transcribe_session(session_path)
-                            print(f"  [2/3] Analiza Pioruna -> notatki...")
-                            ng.generate_academic_notes(session_path, subject)
-                            print(f"  [3/3] Generowanie HTML...")
-                            last_html = hb.build_lecture_page(session_path, subject)
-                            if LECTURE_CLEANUP_AFTER_PROCESS:
-                                removed = cleanup_lecture_artifacts(session_path)
-                                if removed:
-                                    print(f"  [CLEANUP] Usunięto: {', '.join(removed)}")
+                            last_html = process_session(session_path)
                             done_count += 1
                             print(f"  [OK] Gotowe: {last_html}\n")
                         except Exception as e:
-                            failed.append(folder_name)
+                            failed.append(os.path.basename(session_path))
                             print(f"  [!] Sesja pominięta z powodu błędu: {e}\n")
 
                     import webbrowser

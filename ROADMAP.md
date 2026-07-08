@@ -49,6 +49,10 @@ wykładów, retry LLM, wznawialny `/process`, deterministyczny raport poranny,
 **Cel:** od `/stop` do gotowej, przeszukiwalnej notatki bez ani jednej ręcznej
 decyzji; pipeline odporny na wszystko poza brakiem prądu.
 
+> **Status (2026-07-07): 1.1, 1.2, 1.3, 1.5, 1.6 ZREALIZOWANE.**
+> Zostaje 1.4 (OCR slajdów — sprint B, `rapidocr` już zweryfikowany) i 1.7
+> (podpowiedź języka transkrypcji).
+
 | # | Zadanie | Pliki | Rozmiar | Ryzyko |
 |---|---------|-------|---------|--------|
 | 1.1 | Auto-process po `/stop`: pytanie „przetworzyć teraz? [T/n]", refaktor wspólnego `process_session()` używanego przez `/stop` i `/process` | `piorun.py` | S | niskie |
